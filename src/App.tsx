@@ -254,9 +254,15 @@ export default function App() {
     const maybe = data.summary.POSSIBLE;
     const unclear = data.summary.UNKNOWN + data.summary.BLOCKED;
     const coverage = Math.round((data.results.length / Math.max(1, data.sourceCount)) * 100);
+    const signalCategories = new Set(
+      data.results
+        .filter((result) => result.status === 'FOUND' || result.status === 'POSSIBLE')
+        .map((result) => result.category),
+    );
     const summaryText = [
       `ARIADNE · PUBLIC FOOTPRINT`,
       `@${data.query}`,
+      `${found + maybe} public profile signals across ${signalCategories.size} categor${signalCategories.size === 1 ? 'y' : 'ies'}`,
       `Found: ${found} · Maybe: ${maybe} · Needs review: ${unclear} · Coverage: ${coverage}%`,
       `${data.results.length} of ${data.sourceCount} sources checked`,
       'A username match is a public signal, not proof of account ownership.',
@@ -373,11 +379,10 @@ export default function App() {
 
       {mode === 'solo' && data && (
         <section className="results-section">
-          <div className="result-header">
+          <div className="result-header solo-result-header">
             <div>
-              <div className="eyebrow">SEARCH RESULTS</div>
-              <h2>@{data.query}</h2>
-              <p>{data.summary.FOUND} found · {data.summary.POSSIBLE} maybe · {data.results.length}/{data.sourceCount} sites checked</p>
+              <div className="eyebrow">SCAN REPORT</div>
+              <p>@{data.query} · {data.results.length}/{data.sourceCount} sources checked</p>
             </div>
             <div className="result-actions">
               <button className="secondary" onClick={rescan} disabled={loading}>Rescan</button>
@@ -570,6 +575,9 @@ function ProfileSummary({
   const coverage = Math.round((data.results.length / Math.max(1, data.sourceCount)) * 100);
   const categorySignals = analytics.categories.filter((item) => item.found + item.possible > 0).slice(0, 6);
   const categoryMax = Math.max(1, ...categorySignals.map((item) => item.found + item.possible));
+  const signalCount = found.length + possible.length;
+  const signalCategoryCount = analytics.categories.filter((item) => item.found + item.possible > 0).length;
+  const topSignalCategories = categorySignals.slice(0, 3);
   const mixTotal = Math.max(1, data.results.length);
   const mix = [
     { key: 'found', label: 'Found', value: data.summary.FOUND },
@@ -585,7 +593,7 @@ function ProfileSummary({
         <div className="profile-identity">
           <div className="profile-monogram" aria-hidden="true">{data.query.slice(0, 1).toUpperCase()}</div>
           <div>
-            <div className="eyebrow">PUBLIC FOOTPRINT</div>
+            <div className="eyebrow">PUBLIC FOOTPRINT REPORT</div>
             <h3>@{data.query}</h3>
             <p>Scanned {new Date(data.checkedAt).toLocaleString()} · {data.sourceCount} configured sources</p>
           </div>
@@ -593,6 +601,36 @@ function ProfileSummary({
         <div className="profile-summary-actions">
           <span className={complete ? 'scan-state complete' : 'scan-state'}>{complete ? 'Scan complete' : 'Updating'}</span>
           <button className="secondary" type="button" onClick={onShare}>Share snapshot</button>
+        </div>
+      </div>
+
+      <div className="profile-story" aria-label="Public footprint at a glance">
+        <div className="profile-story-main">
+          <div className="eyebrow">AT A GLANCE</div>
+          <p className="profile-story-copy">
+            {signalCount > 0 ? (
+              <>This username surfaced <strong>{signalCount} public profile signal{signalCount === 1 ? '' : 's'}</strong> across <strong>{signalCategoryCount} categor{signalCategoryCount === 1 ? 'y' : 'ies'}</strong>{complete ? ' in this scan.' : ' so far.'}</>
+            ) : (
+              <>No Found or Maybe profile signals have surfaced{complete ? ' in this scan.' : ' so far.'}</>
+            )}
+          </p>
+          <p className="profile-story-note">
+            {unclear > 0
+              ? `${unclear} check${unclear === 1 ? '' : 's'} remain blocked or unclear. Ariadne keeps those separate from No match.`
+              : 'Blocked and unclear checks stay separate from No match, so absence is never inferred from a failed check.'}
+          </p>
+        </div>
+        <div className="profile-story-context">
+          <span>Signal areas</span>
+          {topSignalCategories.length > 0 ? (
+            <div className="profile-story-tags">
+              {topSignalCategories.map((item) => (
+                <span key={item.category}><strong>{item.label}</strong><small>{item.found + item.possible} signal{item.found + item.possible === 1 ? '' : 's'}</small></span>
+              ))}
+            </div>
+          ) : (
+            <small>No positive signal categories yet.</small>
+          )}
         </div>
       </div>
 
