@@ -1,4 +1,4 @@
-import { searchUsername, validateCursor, validateUsername } from './search.js';
+import { searchableSourceStats, searchUsername, validateCursor, validateUsername } from './search.js';
 import { sourceStats } from './sources.js';
 
 type RateLimit = { limit(options: { key: string }): Promise<{ success: boolean }> };
@@ -16,6 +16,10 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}): 
     status,
     headers: { ...SECURITY_HEADERS, 'Cache-Control': 'no-store', ...extra },
   });
+}
+
+function publicSourceStats() {
+  return { ...searchableSourceStats(), provenance: sourceStats.provenance };
 }
 
 async function handleSearch(request: Request, env: Env): Promise<Response> {
@@ -58,10 +62,10 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === 'GET' && url.pathname === '/api/health') {
-        return json({ ok: true, service: 'ariadne', version: '0.2.0', sources: sourceStats });
+        return json({ ok: true, service: 'ariadne', version: '0.2.0', sources: publicSourceStats() });
       }
       if (request.method === 'GET' && url.pathname === '/api/sources') {
-        return json(sourceStats);
+        return json(publicSourceStats());
       }
       if (request.method === 'POST' && url.pathname === '/api/search') {
         return await handleSearch(request, env);
