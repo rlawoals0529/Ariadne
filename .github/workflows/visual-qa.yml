@@ -1,0 +1,26 @@
+name: Visual QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/visual-qa.mjs'
+      - '.github/workflows/visual-qa.yml'
+  workflow_dispatch:
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --ignore-scripts --no-fund
+      - run: npm install --no-save playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Capture production visual states
+        env:
+          ARIADNE_URL: https://ariadne.rlawoals0529.workers.dev
+        run: node scripts/visual-qa.mjs
