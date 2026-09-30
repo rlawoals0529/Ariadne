@@ -10,8 +10,24 @@ const statusLabel: Record<SourceResult['status'], string> = {
   SKIPPED: 'Skipped',
 };
 
-type SourceStats = { total: number; standard: number; nsfw: number; provenance?: string };
+type SourceStats = { total: number; standard: number; nsfw: number; disabled?: number; provenance?: string };
 type SensitivityFilter = 'ALL' | 'SFW' | 'NSFW';
+type Mode = 'solo' | 'party';
+
+type PartyMetrics = {
+  participants: Array<{
+    query: string;
+    confirmed: number;
+    possible: number;
+    trail: number;
+    unique: string[];
+    categories: Array<[string, number]>;
+  }>;
+  shared: string[];
+  longest: string[];
+  mostConfirmed: string[];
+  mostUnique: string[];
+};
 
 function emptySummary(): Record<ResultStatus, number> {
   return { FOUND: 0, POSSIBLE: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
@@ -23,13 +39,106 @@ function summarize(results: SourceResult[]) {
   return summary;
 }
 
+function isTrail(result: SourceResult) {
+  return result.status === 'FOUND' || result.status === 'POSSIBLE';
+}
+
 async function copy(text: string) {
   await navigator.clipboard.writeText(text);
 }
 
+async function scanUsername(
+  username: string,
+  includeNsfw: boolean,
+  onProgress?: (report: SearchResponse) => void,
+): Promise<SearchResponse> {
+  let cursor: number | null = 0;
+  let accumulated: SourceResult[] = [];
+  let latest: SearchResponse | null = null;
+
+  while (cursor !== null) {
+    const response = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: username, kind: 'username', includeNsfw, cursor }),
+    });
+    const payload = await response.json() as SearchResponse | { error: string };
+    if (!response.ok || 'error' in payload) throw new Error('error' in payload ? payload.error : 'Search failed');
+
+    accumulated = [...accumulated, ...payload.results];
+    latest = {
+      ...payload,
+      batchCount: accumulated.length,
+      results: accumulated,
+      summary: summarize(accumulated),
+    };
+    onProgress?.(latest);
+    cursor = payload.nextCursor;
+  }
+
+  if (!latest) throw new Error('Search returned no source batches');
+  return latest;
+}
+
+function buildPartyMetrics(reports: SearchResponse[]): PartyMetrics {
+  const sourceUsers = new Map<string, Set<string>>();
+  const sourceNames = new Map<string, string>();
+
+  for (const report of reports) {
+    for (const result of report.results.filter(isTrail)) {
+      sourceNames.set(result.sourceId, result.sourceName);
+      const users = sourceUsers.get(result.sourceId) ?? new Set<string>();
+      users.add(report.query);
+      sourceUsers.set(result.sourceId, users);
+    }
+  }
+
+  const shared = [...sourceUsers.entries()]
+    .filter(([, users]) => users.size >= 2)
+    .map(([sourceId]) => sourceNames.get(sourceId) ?? sourceId)
+    .sort((a, b) => a.localeCompare(b));
+
+  const participants = reports.map((report) => {
+    const trails = report.results.filter(isTrail);
+    const unique = trails
+      .filter((result) => sourceUsers.get(result.sourceId)?.size === 1)
+      .map((result) => result.sourceName)
+      .sort((a, b) => a.localeCompare(b));
+    const categoryCounts = new Map<string, number>();
+    for (const result of trails) categoryCounts.set(result.category, (categoryCounts.get(result.category) ?? 0) + 1);
+    const categories = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+    return {
+      query: report.query,
+      confirmed: report.summary.FOUND,
+      possible: report.summary.POSSIBLE,
+      trail: report.summary.FOUND + report.summary.POSSIBLE,
+      unique,
+      categories,
+    };
+  });
+
+  function leaders(value: (participant: PartyMetrics['participants'][number]) => number) {
+    const max = Math.max(0, ...participants.map(value));
+    return participants.filter((participant) => value(participant) === max).map((participant) => participant.query);
+  }
+
+  return {
+    participants,
+    shared,
+    longest: leaders((participant) => participant.trail),
+    mostConfirmed: leaders((participant) => participant.confirmed),
+    mostUnique: leaders((participant) => participant.unique.length),
+  };
+}
+
 export default function App() {
+  const [mode, setMode] = useState<Mode>('solo');
   const [query, setQuery] = useState('');
+  const [partyQueries, setPartyQueries] = useState(['', '']);
   const [data, setData] = useState<SearchResponse | null>(null);
+  const [partyData, setPartyData] = useState<SearchResponse[]>([]);
+  const [partyProgress, setPartyProgress] = useState('');
   const [sourceStats, setSourceStats] = useState<SourceStats | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,7 +163,9 @@ export default function App() {
     [data, filter, sensitivityFilter],
   );
 
-  async function submit(event: FormEvent) {
+  const partyMetrics = useMemo(() => buildPartyMetrics(partyData), [partyData]);
+
+  async function submitSolo(event: FormEvent) {
     event.preventDefault();
     setError('');
     setData(null);
@@ -62,51 +173,91 @@ export default function App() {
     setSensitivityFilter('ALL');
     setLoading(true);
 
-    let cursor: number | null = 0;
-    let accumulated: SourceResult[] = [];
-    let latest: SearchResponse | null = null;
-
     try {
-      while (cursor !== null) {
-        const response = await fetch('/api/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, kind: 'username', includeNsfw, cursor }),
-        });
-        const payload = await response.json() as SearchResponse | { error: string };
-        if (!response.ok || 'error' in payload) throw new Error('error' in payload ? payload.error : 'Search failed');
-
-        accumulated = [...accumulated, ...payload.results];
-        latest = {
-          ...payload,
-          batchCount: accumulated.length,
-          results: accumulated,
-          summary: summarize(accumulated),
-        };
-        setData(latest);
-        cursor = payload.nextCursor;
-      }
+      const report = await scanUsername(query.trim(), includeNsfw, setData);
+      setData(report);
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Search failed';
-      setError(accumulated.length && latest ? `Scan stopped after ${accumulated.length} of ${latest.sourceCount} sources: ${message}` : message);
+      setError(caught instanceof Error ? caught.message : 'Search failed');
     } finally {
       setLoading(false);
     }
   }
 
+  async function submitParty(event: FormEvent) {
+    event.preventDefault();
+    const names = partyQueries.map((value) => value.trim()).filter(Boolean);
+    const unique = [...new Set(names.map((value) => value.toLowerCase()))];
+    if (names.length < 2) {
+      setError('Add at least two usernames for Thread Party.');
+      return;
+    }
+    if (unique.length !== names.length) {
+      setError('Thread Party usernames must be unique.');
+      return;
+    }
+
+    setError('');
+    setPartyData([]);
+    setPartyProgress('');
+    setLoading(true);
+
+    try {
+      const reports: SearchResponse[] = [];
+      for (let index = 0; index < names.length; index += 1) {
+        const username = names[index];
+        setPartyProgress(`Scanning @${username} · ${index + 1} of ${names.length}`);
+        const report = await scanUsername(username, includeNsfw, (partial) => {
+          setPartyProgress(`Scanning @${username} · ${partial.results.length}/${partial.sourceCount} sources · ${index + 1} of ${names.length}`);
+        });
+        reports.push(report);
+        setPartyData([...reports]);
+      }
+      setPartyProgress('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Party scan failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updatePartyQuery(index: number, value: string) {
+    setPartyQueries((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
+  }
+
+  function addPartyMember() {
+    setPartyQueries((current) => current.length >= 4 ? current : [...current, '']);
+  }
+
+  function removePartyMember(index: number) {
+    setPartyQueries((current) => current.length <= 2 ? current : current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
   function exportJson() {
-    if (!data) return;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const payload = mode === 'party' ? { mode: 'thread-party', generatedAt: new Date().toISOString(), reports: partyData } : data;
+    if (!payload) return;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ariadne-${data.query}.json`;
+    link.download = mode === 'party' ? 'ariadne-thread-party.json' : `ariadne-${data?.query ?? 'report'}.json`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
+  async function copyPartyCard() {
+    const lines = [
+      'ARIADNE · THREAD PARTY',
+      ...partyMetrics.participants.map((participant) => `@${participant.query}: ${participant.confirmed} confirmed, ${participant.possible} possible, ${participant.unique.length} unique paths`),
+      `Shared paths: ${partyMetrics.shared.length}`,
+      `Longest thread: ${partyMetrics.longest.map((name) => `@${name}`).join(', ')}`,
+      'Public-profile scan only. Possible matches are not confirmed identities.',
+    ];
+    await copy(lines.join('\n'));
+  }
+
   const standardCount = sourceStats?.standard;
   const nsfwCount = sourceStats?.nsfw;
+  const showPrinciples = mode === 'solo' ? !data && !loading : !partyData.length && !loading;
 
   return (
     <main>
@@ -121,36 +272,53 @@ export default function App() {
         <div className="eyebrow">FOLLOW THE THREAD</div>
         <h1>Find the account.<br /><em>Keep the evidence.</em></h1>
         <p className="lede">Ariadne checks a wide catalog of public profile sources without pretending every successful response is a confirmed match. Broad-catalog hits stay <strong>Possible</strong> until the evidence is strong enough to confirm them.</p>
-        <form onSubmit={submit} className="search-form">
-          <label htmlFor="username">Username</label>
-          <div className="search-row">
-            <input id="username" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" spellCheck={false} placeholder="e.g. rlawoals0529" maxLength={64} />
-            <button type="submit" disabled={loading || !query.trim()}>{loading ? 'Following…' : 'Follow thread'}</button>
-          </div>
 
-          <label className="nsfw-option">
-            <input type="checkbox" checked={includeNsfw} onChange={(event) => setIncludeNsfw(event.target.checked)} disabled={loading} />
-            <span className="switch" aria-hidden="true" />
-            <span className="nsfw-copy">
-              <strong>Include NSFW / adult sources</strong>
-              <small>Off by default. Checks public profile pages only; explicit site names may appear in results.</small>
-            </span>
-          </label>
+        <div className="mode-tabs" aria-label="Search mode">
+          <button type="button" className={mode === 'solo' ? 'active' : ''} onClick={() => { setMode('solo'); setError(''); }}>Solo thread</button>
+          <button type="button" className={mode === 'party' ? 'active' : ''} onClick={() => { setMode('party'); setError(''); }}>Thread Party</button>
+        </div>
 
-          <div className="form-meta">
-            <span>{standardCount ? `${standardCount} standard sources` : 'Wide public-source catalog'}</span>
-            <span>{nsfwCount ? `${nsfwCount} optional NSFW sources` : 'Optional NSFW catalog'}</span>
-            <span>No search history stored</span>
-          </div>
-        </form>
+        {mode === 'solo' ? (
+          <form onSubmit={submitSolo} className="search-form">
+            <label htmlFor="username">Username</label>
+            <div className="search-row">
+              <input id="username" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" spellCheck={false} placeholder="e.g. rlawoals0529" maxLength={64} />
+              <button type="submit" disabled={loading || !query.trim()}>{loading ? 'Following…' : 'Follow thread'}</button>
+            </div>
+            <NsfwOption checked={includeNsfw} onChange={setIncludeNsfw} disabled={loading} />
+            <SourceMeta standardCount={standardCount} nsfwCount={nsfwCount} />
+          </form>
+        ) : (
+          <form onSubmit={submitParty} className="search-form party-form">
+            <div className="party-form-head">
+              <div>
+                <label>Friends</label>
+                <small>Compare 2–4 usernames. Reports stay in this browser tab and are not saved by Ariadne.</small>
+              </div>
+              <button type="button" className="text-button" onClick={addPartyMember} disabled={partyQueries.length >= 4 || loading}>+ Add friend</button>
+            </div>
+            <div className="party-inputs">
+              {partyQueries.map((value, index) => (
+                <div className="party-input-row" key={index}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <input value={value} onChange={(event) => updatePartyQuery(index, event.target.value)} autoComplete="off" spellCheck={false} placeholder={index === 0 ? 'your username' : 'friend username'} maxLength={64} aria-label={`Party username ${index + 1}`} />
+                  {partyQueries.length > 2 && <button type="button" className="remove-member" onClick={() => removePartyMember(index)} aria-label={`Remove username ${index + 1}`}>×</button>}
+                </div>
+              ))}
+            </div>
+            <button className="party-submit" type="submit" disabled={loading || partyQueries.filter((value) => value.trim()).length < 2}>{loading ? 'Tracing party…' : 'Compare threads'}</button>
+            <NsfwOption checked={includeNsfw} onChange={setIncludeNsfw} disabled={loading} />
+            <SourceMeta standardCount={standardCount} nsfwCount={nsfwCount} />
+          </form>
+        )}
         {error && <div className="error" role="alert">{error}</div>}
       </section>
 
-      {!data && !loading && (
+      {showPrinciples && (
         <section className="principles" aria-label="How Ariadne verifies results">
           <article><span>01</span><h2>Confirmed vs. possible</h2><p>Direct API identity matches are confirmed. Broader site rules are labeled possible until you open the profile.</p></article>
           <article><span>02</span><h2>Unknown stays unknown</h2><p>Rate limits, CAPTCHAs, blocks, timeouts, and server failures never become account claims.</p></article>
-          <article><span>03</span><h2>Explicit stays opt-in</h2><p>Adult sources are excluded unless you deliberately enable the NSFW catalog before searching.</p></article>
+          <article><span>03</span><h2>Compare, don’t score privacy</h2><p>Thread Party uses factual public-profile counts and overlap. It does not assign a privacy, safety, or reputation score.</p></article>
         </section>
       )}
 
@@ -158,13 +326,13 @@ export default function App() {
         <section className="loading-panel">
           <div className="thread-loader" />
           <div>
-            <p>Following {query.trim()} across public sources…</p>
-            {data && <small>{data.results.length} of {data.sourceCount} sources checked</small>}
+            <p>{mode === 'party' ? (partyProgress || 'Preparing party scan…') : `Following ${query.trim()} across public sources…`}</p>
+            {mode === 'solo' && data && <small>{data.results.length} of {data.sourceCount} sources checked</small>}
           </div>
         </section>
       )}
 
-      {data && (
+      {mode === 'solo' && data && (
         <section className="results-section">
           <div className="result-header">
             <div>
@@ -199,8 +367,101 @@ export default function App() {
         </section>
       )}
 
-      <footer><span>ARIADNE v0.2</span><span>Public profile sources only · NSFW off by default · No breach data · No password-reset or signup probing</span></footer>
+      {mode === 'party' && partyData.length > 0 && (
+        <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onCopy={copyPartyCard} />
+      )}
+
+      <footer><span>ARIADNE v0.3</span><span>Public profile sources only · NSFW off by default · Party scans are not stored · No breach data</span></footer>
     </main>
+  );
+}
+
+function SourceMeta({ standardCount, nsfwCount }: { standardCount?: number; nsfwCount?: number }) {
+  return (
+    <div className="form-meta">
+      <span>{standardCount ? `${standardCount} standard sources` : 'Wide public-source catalog'}</span>
+      <span>{nsfwCount ? `${nsfwCount} optional NSFW sources` : 'Optional NSFW catalog'}</span>
+      <span>No search history stored</span>
+    </div>
+  );
+}
+
+function NsfwOption({ checked, onChange, disabled }: { checked: boolean; onChange: (value: boolean) => void; disabled: boolean }) {
+  return (
+    <label className="nsfw-option">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} disabled={disabled} />
+      <span className="switch" aria-hidden="true" />
+      <span className="nsfw-copy">
+        <strong>Include NSFW / adult sources</strong>
+        <small>Off by default. Checks public profile pages only; explicit site names may appear in results.</small>
+      </span>
+    </label>
+  );
+}
+
+function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports: SearchResponse[]; metrics: PartyMetrics; loading: boolean; onExport: () => void; onCopy: () => void }) {
+  return (
+    <section className="results-section party-report">
+      <div className="result-header">
+        <div>
+          <div className="eyebrow">THREAD PARTY</div>
+          <h2>{reports.length} threads</h2>
+          <p>{metrics.shared.length} shared public-profile paths found across the completed scans{loading ? ' · scan still running' : ''}</p>
+        </div>
+        <div className="party-actions">
+          <button className="secondary" onClick={onCopy}>Copy party card</button>
+          <button className="secondary" onClick={onExport}>Export JSON</button>
+        </div>
+      </div>
+
+      <div className="party-awards" aria-label="Thread Party highlights">
+        <PartyAward title="Longest thread" names={metrics.longest} note="Most confirmed + possible public-profile paths" />
+        <PartyAward title="Most confirmed" names={metrics.mostConfirmed} note="Most direct high-confidence identity matches" />
+        <PartyAward title="Most solo paths" names={metrics.mostUnique} note="Most sites not shared by another party member" />
+      </div>
+
+      <div className="party-scoreboard">
+        {metrics.participants.map((participant) => (
+          <article key={participant.query} className="party-person">
+            <div className="party-person-head">
+              <div><span className="source-glyph">{participant.query.slice(0, 1).toUpperCase()}</span></div>
+              <div><strong>@{participant.query}</strong><small>{participant.trail} public-profile paths</small></div>
+            </div>
+            <dl>
+              <div><dt>Confirmed</dt><dd>{participant.confirmed}</dd></div>
+              <div><dt>Possible</dt><dd>{participant.possible}</dd></div>
+              <div><dt>Solo paths</dt><dd>{participant.unique.length}</dd></div>
+            </dl>
+            <div className="category-stack">
+              {participant.categories.slice(0, 5).map(([category, count]) => <span key={category}>{category} {count}</span>)}
+            </div>
+            {participant.unique.length > 0 && <p className="party-unique"><span>Unique:</span> {participant.unique.slice(0, 6).join(', ')}{participant.unique.length > 6 ? ` +${participant.unique.length - 6}` : ''}</p>}
+          </article>
+        ))}
+      </div>
+
+      <div className="shared-paths">
+        <div>
+          <div className="eyebrow">SHARED PATHS</div>
+          <h3>Where the threads cross</h3>
+        </div>
+        {metrics.shared.length ? (
+          <div className="path-cloud">{metrics.shared.map((source) => <span key={source}>{source}</span>)}</div>
+        ) : <p>No shared confirmed/possible paths among the completed scans.</p>}
+      </div>
+
+      <p className="party-disclaimer">Thread Party is a comparison of this scan’s public-profile evidence, not a privacy, identity, reputation, or safety score. Possible matches still require manual confirmation.</p>
+    </section>
+  );
+}
+
+function PartyAward({ title, names, note }: { title: string; names: string[]; note: string }) {
+  return (
+    <article>
+      <span>{title}</span>
+      <strong>{names.map((name) => `@${name}`).join(' · ') || '—'}</strong>
+      <small>{note}</small>
+    </article>
   );
 }
 
