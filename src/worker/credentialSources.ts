@@ -98,7 +98,6 @@ function twitchSource(credentials: PopularSourceCredentials): SourceDefinition {
     category: 'social',
     nsfw: false,
     profileUrl: (u) => `https://www.twitch.tv/${encodeURIComponent(u)}`,
-    validate: (u) => /^[A-Za-z0-9_]{4,25}$/.test(u),
     probe: async (u, signal) => {
       const tokenResult = await getTwitchAppToken(credentials, signal);
       if (!tokenResult.token) {
@@ -145,7 +144,6 @@ function youtubeSource(credentials: PopularSourceCredentials): SourceDefinition 
     category: 'media',
     nsfw: false,
     profileUrl: (u) => `https://www.youtube.com/@${encodeURIComponent(u)}`,
-    validate: (u) => /^[A-Za-z0-9._-]{3,30}$/.test(u),
     probe: async (u, signal) => {
       const params = new URLSearchParams({
         part: 'snippet',
