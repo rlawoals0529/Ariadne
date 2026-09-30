@@ -41,11 +41,11 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
   assert.ok(searchable.total >= 120, `expected at least 120 searchable sources, got ${searchable.total}`);
   assert.ok(searchable.standard >= 100, `expected at least 100 standard sources, got ${searchable.standard}`);
   assert.ok(sourceStats.nsfw >= 15, `expected at least 15 NSFW sources, got ${sourceStats.nsfw}`);
-  assert.ok(searchable.direct >= 13, `expected at least 13 direct adapters, got ${searchable.direct}`);
+  assert.ok(searchable.direct >= 17, `expected at least 17 direct adapters, got ${searchable.direct}`);
   assert.equal(selectSources(false).some((source) => source.nsfw), false);
   assert.equal(selected.filter((source) => source.nsfw).length, searchable.nsfw);
 
-  for (const sourceId of ['anilist', 'bluesky', 'chess-com', 'codeforces', 'codewars', 'dev-community', 'hugging-face', 'keybase']) {
+  for (const sourceId of ['anilist', 'bluesky', 'chess-com', 'codeforces', 'codewars', 'dev-community', 'hugging-face', 'keybase', 'lichess', 'mastodon-social', 'roblox', 'scratch']) {
     assert.ok(selected.some((source) => source.id === sourceId), `${sourceId} exact adapter should be searchable`);
   }
 
@@ -57,6 +57,10 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
     'catalog-dev-community',
     'catalog-hugging-face',
     'catalog-keybase',
+    'catalog-lichess',
+    'catalog-mastodon-social',
+    'catalog-roblox',
+    'catalog-scratch',
   ]) {
     assert.equal(selected.some((source) => source.id === duplicateId), false, `${duplicateId} should not be searched when an exact adapter exists`);
   }
@@ -144,6 +148,62 @@ test('exact adapters only confirm matching usernames', async (t) => {
       globalThis.fetch = async () => Response.json({ them: [null] });
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Lichess confirms API username', async () => {
+      const source = selected.find((item) => item.id === 'lichess');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'Alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Lichess 404 is an explicit miss', async () => {
+      const source = selected.find((item) => item.id === 'lichess');
+      assert.ok(source);
+      globalThis.fetch = async () => new Response('missing', { status: 404 });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Scratch confirms API username', async () => {
+      const source = selected.find((item) => item.id === 'scratch');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'Alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Roblox confirms canonical username', async () => {
+      const source = selected.find((item) => item.id === 'roblox');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ data: [{ name: 'Alice' }] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Roblox empty data is an explicit miss', async () => {
+      const source = selected.find((item) => item.id === 'roblox');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ data: [] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Mastodon.social confirms WebFinger subject', async () => {
+      const source = selected.find((item) => item.id === 'mastodon-social');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ subject: 'acct:Alice@mastodon.social' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Mastodon.social WebFinger mismatch stays unknown', async () => {
+      const source = selected.find((item) => item.id === 'mastodon-social');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ subject: 'acct:bob@mastodon.social' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'UNKNOWN');
     });
 
     await t.test('exact adapter mismatch never becomes found', async () => {
