@@ -66,6 +66,106 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
   }
 });
 
+
+test('popular credential-backed adapters replace weaker catalog checks when configured', () => {
+  const credentials = {
+    TWITCH_CLIENT_ID: 'client-id',
+    TWITCH_CLIENT_SECRET: 'client-secret',
+    YOUTUBE_API_KEY: 'youtube-key',
+    STEAM_WEB_API_KEY: 'steam-key',
+  };
+  const selected = selectSources(true, credentials);
+  const stats = searchableSourceStats(credentials);
+
+  for (const sourceId of ['twitch', 'youtube', 'steam-community']) {
+    assert.ok(selected.some((source) => source.id === sourceId), `${sourceId} exact adapter should be enabled`);
+  }
+  for (const sourceId of ['catalog-twitch', 'catalog-youtube', 'catalog-steam-community']) {
+    assert.equal(selected.some((source) => source.id === sourceId), false, `${sourceId} fallback should be disabled`);
+  }
+
+  assert.equal(stats.total, searchableSourceStats().total, 'credential adapters should replace, not inflate, site count');
+  assert.ok(stats.direct >= 20, `expected at least 20 exact checks with popular credentials, got ${stats.direct}`);
+  assert.deepEqual(new Set(stats.credentialExact), new Set(['Twitch', 'YouTube', 'Steam Community']));
+});
+
+test('popular credential-backed exact checks stay conservative', async (t) => {
+  const credentials = {
+    TWITCH_CLIENT_ID: 'client-id',
+    TWITCH_CLIENT_SECRET: 'client-secret',
+    YOUTUBE_API_KEY: 'youtube-key',
+    STEAM_WEB_API_KEY: 'steam-key',
+  };
+  const selected = selectSources(true, credentials);
+  const originalFetch = globalThis.fetch;
+
+  try {
+    await t.test('Twitch confirms the returned login', async () => {
+      const source = selected.find((item) => item.id === 'twitch');
+      assert.ok(source);
+      globalThis.fetch = async (url) => {
+        const value = String(url);
+        if (value.startsWith('https://id.twitch.tv/oauth2/token')) {
+          return Response.json({ access_token: 'token', expires_in: 3600 });
+        }
+        return Response.json({ data: [{ login: 'alice' }] });
+      };
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Twitch empty user list is an explicit miss', async () => {
+      const source = selected.find((item) => item.id === 'twitch');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ data: [] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('YouTube confirms an exact handle lookup', async () => {
+      const source = selected.find((item) => item.id === 'youtube');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ items: [{ id: 'channel-1', snippet: { customUrl: '@Alice' } }] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('YouTube zero results is an explicit miss', async () => {
+      const source = selected.find((item) => item.id === 'youtube');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ items: [] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('YouTube conflicting custom URL stays unknown', async () => {
+      const source = selected.find((item) => item.id === 'youtube');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ items: [{ id: 'channel-1', snippet: { customUrl: '@bob' } }] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'UNKNOWN');
+    });
+
+    await t.test('Steam vanity resolver confirms a mapped SteamID', async () => {
+      const source = selected.find((item) => item.id === 'steam-community');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ response: { success: 1, steamid: '76561198000000000' } });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Steam unresolved vanity stays unknown rather than claiming no match', async () => {
+      const source = selected.find((item) => item.id === 'steam-community');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ response: { success: 42, message: 'No match' } });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'UNKNOWN');
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('exact adapters only confirm matching usernames', async (t) => {
   const originalFetch = globalThis.fetch;
   const selected = selectSources(true);

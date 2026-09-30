@@ -4,6 +4,27 @@
 
 Ariadne searches public profile pages for a username and keeps uncertainty visible. It does not treat a page loading as proof that an account exists, and it no longer treats weak page-level “missing” signals as proof that an account is absent.
 
+## v0.9 — popular-site exact integrations
+
+The next accuracy targets are **Twitch, YouTube, and Steam Community** because they are high-value username destinations and each has an official lookup path.
+
+Ariadne now includes exact adapters for all three, but they are **credential-gated**:
+
+- **Twitch** uses Helix `Get Users` with an app access token and compares the returned `login`.
+- **YouTube** uses `channels.list?forHandle=` and only confirms a handle when the official Data API returns a channel for that exact handle lookup.
+- **Steam Community** uses `ResolveVanityURL` and only confirms a vanity name when Steam resolves it to a SteamID. An unresolved response stays **Couldn’t tell** rather than becoming a definitive No match.
+
+Until the relevant server-side credential is configured, Ariadne keeps the existing broad page check for that site. Once credentials are present, the stronger adapter automatically replaces the weaker duplicate instead of adding a second result.
+
+Required Worker secrets:
+
+- `TWITCH_CLIENT_ID`
+- `TWITCH_CLIENT_SECRET`
+- `YOUTUBE_API_KEY`
+- `STEAM_WEB_API_KEY`
+
+Do not expose these values in the browser bundle or commit them to the repository.
+
 ## v0.8 — exact checks over guesswork
 
 Accuracy is the priority for this release. Ariadne adds four stronger public identity checks and disables their weaker catalog duplicates:
