@@ -22,6 +22,8 @@ export type CategoryAnalytics = {
 
 export type ScanAnalytics = {
   coveragePercent: number;
+  returned: number;
+  sourceCount: number;
   attempted: number;
   exactAttempted: number;
   exactDecisions: number;
@@ -97,6 +99,8 @@ export function buildScanAnalytics(report: SearchResponse): ScanAnalytics {
 
   return {
     coveragePercent: percent(report.results.length, report.sourceCount),
+    returned: report.results.length,
+    sourceCount: report.sourceCount,
     attempted: attemptedResults.length,
     exactAttempted: exactResults.length,
     exactDecisions: exactDecisions.length,
