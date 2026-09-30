@@ -149,6 +149,8 @@ export default function App() {
     setFilter('ALL');
     setSensitivityFilter('ALL');
     setEvidenceFilter('ALL');
+    setCategoryFilter('ALL');
+    setResultSearch('');
     setLoading(true);
     try {
       const report = await scanUsername(query.trim(), includeNsfw, setData);
@@ -570,7 +572,7 @@ function ProfileSummary({
   const coverage = Math.round((data.results.length / Math.max(1, data.sourceCount)) * 100);
   const categorySignals = analytics.categories.filter((item) => item.found + item.possible > 0).slice(0, 6);
   const categoryMax = Math.max(1, ...categorySignals.map((item) => item.found + item.possible));
-  const attempted = Math.max(1, analytics.attempted);
+  const mixTotal = Math.max(1, data.results.length);
   const mix = [
     { key: 'found', label: 'Found', value: data.summary.FOUND },
     { key: 'possible', label: 'Maybe', value: data.summary.POSSIBLE },
@@ -611,7 +613,7 @@ function ProfileSummary({
         <div className="mix-track" role="img" aria-label={mix.map((item) => `${item.label}: ${item.value}`).join(', ')}
           >
           {mix.filter((item) => item.value > 0).map((item) => (
-            <span key={item.key} className={`mix-${item.key}`} style={{ width: `${(item.value / attempted) * 100}%` }} />
+            <span key={item.key} className={`mix-${item.key}`} style={{ width: `${(item.value / mixTotal) * 100}%` }} />
           ))}
         </div>
         <div className="mix-legend">
