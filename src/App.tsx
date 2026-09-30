@@ -473,6 +473,28 @@ function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports:
         <FriendGame title="Everyone’s here" value={everyoneLabel} note={everyoneNote} />
       </div>
 
+      <div className="friend-signal-chart" aria-label="Friend signal comparison">
+        <div className="friend-chart-head">
+          <div><div className="eyebrow">COMPARISON ANALYTICS</div><h3>Verified vs. possible signals</h3></div>
+          <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
+        </div>
+        <div className="friend-bars">
+          {metrics.participants.map((participant) => {
+            const maxTrail = Math.max(1, ...metrics.participants.map((item) => item.trail));
+            return (
+              <div className="friend-bar-row" key={participant.query}>
+                <strong>@{participant.query}</strong>
+                <div className="friend-bar-track" aria-hidden="true">
+                  <span className="friend-found" style={{ width: `${(participant.confirmed / maxTrail) * 100}%` }} />
+                  <span className="friend-maybe" style={{ width: `${(participant.possible / maxTrail) * 100}%` }} />
+                </div>
+                <small>{participant.confirmed} found · {participant.possible} maybe</small>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="party-scoreboard">
         {metrics.participants.map((participant) => (
           <article key={participant.query} className="party-person">
