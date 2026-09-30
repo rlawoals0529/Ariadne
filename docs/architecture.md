@@ -7,34 +7,64 @@ Ariadne answers a narrow question: does a public source provide evidence that a 
 The answer space is deliberately larger than yes/no:
 
 - `FOUND`: source-specific positive identity evidence.
+- `POSSIBLE`: a broader public-profile rule suggests a match, but Ariadne does not have enough evidence to confirm it automatically.
 - `NOT_FOUND`: source-specific explicit negative evidence.
 - `UNKNOWN`: response exists, but does not support a claim.
-- `BLOCKED`: rate limit or access control prevented verification.
+- `BLOCKED`: rate limit, authentication, CAPTCHA, or access control prevented verification.
 - `SKIPPED`: the identifier is invalid for that source, so no request was sent.
 
 ## Request path
 
-1. React sends `POST /api/search` with a username.
-2. The Worker validates the input and applies Cloudflare's rate-limit binding.
-3. Five source adapters run in parallel, staying under the Workers six-connection limit.
-4. Each adapter returns raw HTTP state plus a source-specific identity observation.
-5. The evidence classifier produces a typed verdict.
-6. The API returns the verdict and its evidence; the browser renders but does not reinterpret it.
+1. React sends `POST /api/search` with a username, an NSFW opt-in boolean, and an optional numeric cursor.
+2. The Worker validates the input and applies Cloudflare's rate-limit binding using the client IP as the key.
+3. The source registry excludes NSFW entries unless the caller explicitly opted in.
+4. The selected registry is split into batches of at most 20 sources.
+5. Each Worker request runs at most five outbound checks concurrently, staying below Cloudflare Workers' six-simultaneous-connection limit.
+6. Core adapters use direct public API identity evidence. Wide-catalog adapters use source-specific public profile heuristics.
+7. The API returns a batch plus `nextCursor`; the browser accumulates batches into one report.
+8. The browser renders the verdicts but never upgrades `POSSIBLE` to `FOUND` on its own.
 
-## Source admission
+## Source tiers
 
-A source should not ship merely because a profile URL can be templated. It needs a stable public verification signal. Prefer, in order:
+### Verified core
+
+A core source needs a stable public verification signal. Prefer, in order:
 
 1. public JSON API with an identifier field and explicit missing result;
 2. stable redirect behavior with positive and negative controls;
 3. profile-specific response markers with positive and negative controls.
 
-Never treat a generic HTTP 2xx response as sufficient proof.
+Core sources may return `FOUND` when the requested identifier itself is present in source-specific evidence.
+
+### Wide catalog
+
+The wide catalog is adapted from the MIT-licensed Sherlock Project source manifest pinned to commit `e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`.
+
+Ariadne deliberately changes Sherlock-style semantics:
+
+- a generic HTTP success is never promoted directly to `FOUND`;
+- a successful configured rule becomes `POSSIBLE` with medium confidence;
+- explicit configured missing markers become `NOT_FOUND` with medium confidence;
+- 401/403/429, challenge pages, and known CAPTCHA markers become `BLOCKED`;
+- 5xx responses, timeouts, and unclassified failures remain `UNKNOWN`;
+- per-source username regexes are checked before network requests when available.
+
+Catalog rules are limited to public profile pages and public profile APIs. Non-public account-existence mechanisms are intentionally outside the product boundary.
+
+## NSFW handling
+
+Adult/explicit sources are tagged `nsfw: true` and excluded by default. The browser must send `includeNsfw: true` before those sources are selected. When enabled, each result keeps its NSFW flag and can be filtered separately in the UI.
+
+Ariadne does not fetch or display adult media. It only checks public profile endpoints and returns the profile URL/evidence state.
 
 ## Privacy and abuse controls
 
-The initial service stores no searches, has no user database, and does not access breach data or private account-existence mechanisms. The public endpoint is rate-limited. Future persistence must be opt-in and documented before implementation.
+The service stores no searches and has no user database. It does not access breach data or private account data. The public endpoint is rate-limited, large scans are batched, and raw identifiers are not persisted by the Worker.
 
-## Validation state
+Future persistence, saved friend groups, or sharing features must be opt-in and documented before implementation.
 
-As of the bootstrap commit, the pure evidence classifier is covered by local unit tests. GitHub's public user API was also reachable and returned its documented identifier field during research. GitLab, Hacker News, Reddit, and Codeberg adapters are based on current public API contracts, but live outbound execution from this development environment was unavailable; those adapters are therefore **NOT TESTED live** until CI/deployment smoke checks can reach them.
+## Validation
+
+Pure evidence classification, catalog selection, NSFW exclusion, broad-source count, generic `POSSIBLE` behavior, missing-profile behavior, and challenge-page blocking are covered by unit tests. CI also runs the production build, Wrangler dry deploy, and production dependency audit before merge.
+
+Live source behavior can drift independently of Ariadne. A catalog entry passing unit tests does not imply that the external site currently permits automated verification. Runtime blocks remain `BLOCKED` or `UNKNOWN` rather than being converted into fabricated match claims.
