@@ -6,9 +6,23 @@ Ariadne is an evidence-first public account discovery tool. Give it a username a
 
 The core rule is simple: **HTTP 200 is not proof that an account exists.** Direct API identity matches can become `FOUND`; broader catalog rules are reported as `POSSIBLE` until a human opens the profile and confirms it. Rate limits, anti-bot responses, network failures, and ambiguous responses stay `BLOCKED` or `UNKNOWN`.
 
-## v0.2
+## v0.3 — Thread Party
 
-Ariadne now combines two source tiers:
+Thread Party compares 2–4 usernames using the same public-source evidence model as solo scans. It is intentionally client-side and ephemeral: Ariadne does not create accounts, save party members, persist comparison reports, or publish leaderboards.
+
+The comparison surfaces factual scan outcomes rather than a synthetic privacy score:
+
+- confirmed and possible public-profile counts;
+- shared paths where two or more party members have a confirmed/possible result;
+- solo paths that only one party member has in the current scan;
+- category coverage such as developer, gaming, creative, media, and social;
+- playful highlights such as **Longest thread**, **Most confirmed**, and **Most solo paths**, with ties preserved.
+
+NSFW/adult sources remain off by default. If enabled for Thread Party, the same opt-in applies to every username in that party scan.
+
+## v0.2 — Wide search
+
+Ariadne combines two source tiers:
 
 - **Verified core adapters** for GitHub, GitLab, Hacker News, Codeberg, and Reddit. These use source-specific public API identity evidence.
 - **Wide public-profile catalog** covering social, developer, gaming, creative, media, and community sites. The catalog is adapted from a pinned Sherlock Project source manifest and keeps heuristic hits separate from confirmed matches.
@@ -69,6 +83,6 @@ See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Sherlock license 
 
 ## Safety boundary
 
-Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Search history is not stored.
+Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Search history and Thread Party comparisons are not stored.
 
 See [`docs/architecture.md`](docs/architecture.md) for source-admission and evidence rules and [`SECURITY.md`](SECURITY.md) for security boundaries.
