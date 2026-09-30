@@ -21,6 +21,15 @@ type SensitivityFilter = 'ALL' | 'SFW' | 'NSFW';
 type EvidenceFilter = 'ALL' | 'DIRECT' | 'HEURISTIC';
 type Mode = 'solo' | 'party';
 
+const resultPriority: Record<ResultStatus, number> = {
+  FOUND: 0,
+  POSSIBLE: 1,
+  UNKNOWN: 2,
+  BLOCKED: 3,
+  NOT_FOUND: 4,
+  SKIPPED: 5,
+};
+
 function emptySummary(): Record<ResultStatus, number> {
   return { FOUND: 0, POSSIBLE: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
 }
@@ -84,6 +93,8 @@ export default function App() {
   const [filter, setFilter] = useState<'ALL' | SourceResult['status']>('ALL');
   const [sensitivityFilter, setSensitivityFilter] = useState<SensitivityFilter>('ALL');
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [resultSearch, setResultSearch] = useState('');
 
   useEffect(() => {
     fetch('/api/sources')
@@ -92,17 +103,41 @@ export default function App() {
       .catch(() => undefined);
   }, []);
 
+  const categoryOptions = useMemo(() => {
+    if (!data) return [];
+    const counts = new Map<string, number>();
+    for (const result of data.results) counts.set(result.category, (counts.get(result.category) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [data]);
+
   const visible = useMemo(
-    () => data?.results.filter((result) => {
-      if (filter !== 'ALL' && result.status !== filter) return false;
-      if (sensitivityFilter === 'SFW' && result.nsfw) return false;
-      if (sensitivityFilter === 'NSFW' && !result.nsfw) return false;
-      if (evidenceFilter === 'DIRECT' && result.evidenceBasis !== 'direct-api') return false;
-      if (evidenceFilter === 'HEURISTIC' && result.evidenceBasis !== 'catalog-rule') return false;
-      return true;
-    }) ?? [],
-    [data, filter, sensitivityFilter, evidenceFilter],
+    () => data?.results
+      .filter((result) => {
+        if (filter !== 'ALL' && result.status !== filter) return false;
+        if (categoryFilter !== 'ALL' && result.category !== categoryFilter) return false;
+        if (sensitivityFilter === 'SFW' && result.nsfw) return false;
+        if (sensitivityFilter === 'NSFW' && !result.nsfw) return false;
+        if (evidenceFilter === 'DIRECT' && result.evidenceBasis !== 'direct-api') return false;
+        if (evidenceFilter === 'HEURISTIC' && result.evidenceBasis !== 'catalog-rule') return false;
+        const needle = resultSearch.trim().toLowerCase();
+        if (needle && !result.sourceName.toLowerCase().includes(needle) && !result.category.toLowerCase().includes(needle)) return false;
+        return true;
+      })
+      .sort((a, b) => resultPriority[a.status] - resultPriority[b.status] || a.sourceName.localeCompare(b.sourceName)) ?? [],
+    [data, filter, categoryFilter, sensitivityFilter, evidenceFilter, resultSearch],
   );
+
+  const activeFilterCount = [filter !== 'ALL', categoryFilter !== 'ALL', sensitivityFilter !== 'ALL', evidenceFilter !== 'ALL', Boolean(resultSearch.trim())].filter(Boolean).length;
+
+  function clearResultFilters() {
+    setFilter('ALL');
+    setCategoryFilter('ALL');
+    setSensitivityFilter('ALL');
+    setEvidenceFilter('ALL');
+    setCategoryFilter('ALL');
+    setResultSearch('');
+    setResultSearch('');
+  }
 
   const scanAnalytics = useMemo(() => data ? buildScanAnalytics(data) : null, [data]);
   const partyMetrics = useMemo(() => buildFriendMetrics(partyData), [partyData]);
@@ -197,6 +232,20 @@ export default function App() {
     link.download = mode === 'party' ? 'ariadne-friends.json' : `ariadne-${data?.query ?? 'report'}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function rescan() {
+    if (!data) return;
+    setError('');
+    setLoading(true);
+    try {
+      const report = await scanUsername(data.query, data.includeNsfw, setData);
+      setData(report);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Rescan failed');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function copyPartyCard() {
@@ -305,7 +354,10 @@ export default function App() {
               <h2>@{data.query}</h2>
               <p>{data.summary.FOUND} found · {data.summary.POSSIBLE} maybe · {data.results.length}/{data.sourceCount} sites checked</p>
             </div>
-            <button className="secondary" onClick={exportJson}>Save JSON</button>
+            <div className="result-actions">
+              <button className="secondary" onClick={rescan} disabled={loading}>Rescan</button>
+              <button className="secondary" onClick={exportJson}>Save JSON</button>
+            </div>
           </div>
 
           <EvidenceOverview data={data} />
@@ -313,31 +365,77 @@ export default function App() {
           <SourceAvailabilityPanel stats={sourceStats} data={data} />
 
           <div className="filter-deck">
-            <div className="filter-deck-head"><span>Explore results</span><small>{visible.length} shown</small></div>
-          <div className="filters" aria-label="Filter results">
-            {(['ALL', 'FOUND', 'POSSIBLE', 'NOT_FOUND', 'UNKNOWN', 'BLOCKED', 'SKIPPED'] as const).map((item) => (
-              <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item === 'ALL' ? 'All' : statusLabel[item]}</button>
-            ))}
+            <div className="filter-deck-head">
+              <div><span>Explore results</span><small>{visible.length} of {data.results.length} shown</small></div>
+              {activeFilterCount > 0 && <button className="clear-filters" onClick={clearResultFilters}>Clear {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}</button>}
+            </div>
+
+            <div className="result-search">
+              <span aria-hidden="true">⌕</span>
+              <input value={resultSearch} onChange={(event) => setResultSearch(event.target.value)} placeholder="Filter by platform or category" aria-label="Filter results by platform or category" />
+              {resultSearch && <button type="button" onClick={() => setResultSearch('')} aria-label="Clear result search">×</button>}
+            </div>
+
+            <div className="filter-group">
+              <span className="filter-label">Status</span>
+              <div className="filters" aria-label="Filter results by status">
+                {(['ALL', 'FOUND', 'POSSIBLE', 'NOT_FOUND', 'UNKNOWN', 'BLOCKED', 'SKIPPED'] as const).map((item) => (
+                  <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>
+                    {item === 'ALL' ? 'All' : statusLabel[item]} <small>{item === 'ALL' ? data.results.length : data.summary[item]}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <span className="filter-label">Category</span>
+              <div className="filters category-filters" aria-label="Filter results by category">
+                <button className={categoryFilter === 'ALL' ? 'active' : ''} onClick={() => setCategoryFilter('ALL')}>All <small>{data.results.length}</small></button>
+                {categoryOptions.map(([category, count]) => (
+                  <button key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>
+                    {category} <small>{count}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <details className="filter-advanced">
+              <summary>More filters</summary>
+              <div className="filter-advanced-body">
+                <div className="filter-group">
+                  <span className="filter-label">Evidence</span>
+                  <div className="filters evidence-filters" aria-label="Filter by how the site was checked">
+                    {(['ALL', 'DIRECT', 'HEURISTIC'] as const).map((item) => (
+                      <button key={item} className={evidenceFilter === item ? 'active' : ''} onClick={() => setEvidenceFilter(item)}>
+                        {item === 'ALL' ? 'All checks' : item === 'DIRECT' ? 'Verified by site' : 'Needs a look'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {data.includeNsfw && (
+                  <div className="filter-group">
+                    <span className="filter-label">Sensitivity</span>
+                    <div className="filters sensitivity-filters" aria-label="Filter adult sources">
+                      {(['ALL', 'SFW', 'NSFW'] as const).map((item) => (
+                        <button key={item} className={sensitivityFilter === item ? 'active' : ''} onClick={() => setSensitivityFilter(item)}>{item === 'ALL' ? 'All sites' : item === 'SFW' ? 'Regular sites' : 'Adult sites'}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
 
-          <div className="filters evidence-filters" aria-label="Filter by how the site was checked">
-            {(['ALL', 'DIRECT', 'HEURISTIC'] as const).map((item) => (
-              <button key={item} className={evidenceFilter === item ? 'active' : ''} onClick={() => setEvidenceFilter(item)}>
-                {item === 'ALL' ? 'All checks' : item === 'DIRECT' ? 'Verified by site' : 'Needs a look'}
-              </button>
-            ))}
-          </div>
-
-          {data.includeNsfw && (
-            <div className="filters sensitivity-filters" aria-label="Filter adult sources">
-              {(['ALL', 'SFW', 'NSFW'] as const).map((item) => (
-                <button key={item} className={sensitivityFilter === item ? 'active' : ''} onClick={() => setSensitivityFilter(item)}>{item === 'ALL' ? 'All sites' : item === 'SFW' ? 'Regular sites' : 'Adult sites'}</button>
-              ))}
+          {visible.length > 0 ? (
+            <div className="results-list">{visible.map((result) => <ResultCard key={result.sourceId} result={result} />)}</div>
+          ) : (
+            <div className="results-empty">
+              <strong>No sources match these filters.</strong>
+              <span>Try clearing a filter or searching for another platform or category.</span>
+              <button className="secondary" onClick={clearResultFilters}>Clear filters</button>
             </div>
           )}
-          </div>
-
-          <div className="results-list">{visible.map((result) => <ResultCard key={result.sourceId} result={result} />)}</div>
         </section>
       )}
 
@@ -603,6 +701,7 @@ function ResultCard({ result }: { result: SourceResult }) {
           <span className="confidence">{quickNote}</span>
           <span className="chevron">{open ? '−' : '+'}</span>
         </button>
+        <a className="result-open" href={result.profileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${result.sourceName} profile`}>Open <span aria-hidden="true">↗</span></a>
       </div>
       {open && (
         <div className="evidence-panel">
