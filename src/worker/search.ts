@@ -5,6 +5,23 @@ const TIMEOUT_MS = 4500;
 const CONCURRENCY = 5;
 export const SEARCH_BATCH_SIZE = 20;
 
+// These inherited catalog entries currently rely on availability/existence helpers or
+// third-party mirrors rather than the first-party public profile itself. Keep them out
+// of production scans until Ariadne has a dedicated public-profile adapter for them.
+const DISABLED_WIDE_SOURCE_IDS = new Set([
+  'catalog-boardgamegeek',
+  'catalog-chess-com',
+  'catalog-duolingo',
+  'catalog-instagram',
+  'catalog-pypi',
+  'catalog-tryhackme',
+  'catalog-x-twitter',
+]);
+
+function eligibleSources(): SourceDefinition[] {
+  return sources.filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
+}
+
 async function checkSource(source: SourceDefinition, username: string): Promise<SourceResult> {
   const checkedAt = new Date().toISOString();
   const started = Date.now();
@@ -96,7 +113,19 @@ export function validateCursor(input: unknown): number {
 }
 
 export function selectSources(includeNsfw: boolean): SourceDefinition[] {
-  return includeNsfw ? sources : sources.filter((source) => !source.nsfw);
+  const eligible = eligibleSources();
+  return includeNsfw ? eligible : eligible.filter((source) => !source.nsfw);
+}
+
+export function searchableSourceStats() {
+  const all = selectSources(true);
+  const nsfw = all.filter((source) => source.nsfw).length;
+  return {
+    total: all.length,
+    standard: all.length - nsfw,
+    nsfw,
+    disabled: sources.length - all.length,
+  };
 }
 
 function emptySummary(): Record<ResultStatus, number> {
