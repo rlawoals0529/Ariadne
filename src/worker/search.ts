@@ -1,4 +1,5 @@
 import type { EvidenceBasis, ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
+import { exactSources } from './exactSources.js';
 import { sources, type SourceDefinition } from './sources.js';
 
 const TIMEOUT_MS = 4500;
@@ -12,15 +13,23 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-boardgamegeek',
   'catalog-chess-com',
   'catalog-codeforces',
+  'catalog-codewars',
+  'catalog-dev-community',
   'catalog-duolingo',
+  'catalog-hugging-face',
   'catalog-instagram',
+  'catalog-keybase',
   'catalog-pypi',
   'catalog-tryhackme',
   'catalog-x-twitter',
 ]);
 
+function allRegisteredSources(): SourceDefinition[] {
+  return [...sources, ...exactSources];
+}
+
 function eligibleSources(): SourceDefinition[] {
-  return sources.filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
+  return allRegisteredSources().filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
 }
 
 function evidenceBasis(source: SourceDefinition): EvidenceBasis {
@@ -154,7 +163,7 @@ export function searchableSourceStats() {
     nsfw,
     direct,
     heuristic: all.length - direct,
-    disabled: sources.length - all.length,
+    disabled: allRegisteredSources().length - all.length,
   };
 }
 
