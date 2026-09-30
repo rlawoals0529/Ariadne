@@ -882,7 +882,7 @@ function FriendGame({ title, value, note }: { title: string; value: string; note
 }
 
 function ResultCard({ result }: { result: SourceResult }) {
-  const [open, setOpen] = useState(result.status === 'FOUND' || result.status === 'POSSIBLE');
+  const [open, setOpen] = useState(false);
   const basisLabel = result.evidenceBasis === 'direct-api' ? 'Verified by site' : 'Needs a look';
   const statusNote: Record<ResultStatus, string> = {
     FOUND: 'site confirmed username',
