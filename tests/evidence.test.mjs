@@ -8,6 +8,11 @@ test('found requires an identifier match', () => {
   assert.equal(verdict.confidence, 'high');
 });
 
+test('case-sensitive sources do not normalize identity mismatches', () => {
+  const verdict = apiIdentityVerdict({ httpStatus: 200, expected: 'alice', actual: 'Alice', caseSensitive: true });
+  assert.equal(verdict.status, 'UNKNOWN');
+});
+
 test('200 with a different identity is unknown, never found', () => {
   const verdict = apiIdentityVerdict({ httpStatus: 200, expected: 'alice', actual: 'bob' });
   assert.equal(verdict.status, 'UNKNOWN');
