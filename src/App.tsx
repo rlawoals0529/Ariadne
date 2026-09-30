@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { buildScanAnalytics, type ScanAnalytics } from './analytics';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import type { ResultStatus, SearchResponse, SourceResult } from './shared/types';
 
@@ -14,7 +15,7 @@ const statusLabel: Record<SourceResult['status'], string> = {
   SKIPPED: 'Skipped',
 };
 
-type SourceStats = { total: number; standard: number; nsfw: number; direct?: number; heuristic?: number; disabled?: number; provenance?: string };
+type SourceStats = { total: number; standard: number; nsfw: number; direct?: number; heuristic?: number; disabled?: number; credentialExact?: string[]; provenance?: string };
 type SensitivityFilter = 'ALL' | 'SFW' | 'NSFW';
 type EvidenceFilter = 'ALL' | 'DIRECT' | 'HEURISTIC';
 type Mode = 'solo' | 'party';
@@ -102,6 +103,7 @@ export default function App() {
     [data, filter, sensitivityFilter, evidenceFilter],
   );
 
+  const scanAnalytics = useMemo(() => data ? buildScanAnalytics(data) : null, [data]);
   const partyMetrics = useMemo(() => buildFriendMetrics(partyData), [partyData]);
 
   async function submitSolo(event: FormEvent) {
@@ -219,13 +221,23 @@ export default function App() {
     <main>
       <header className="nav">
         <a className="brand" href="/" aria-label="Ariadne home"><span className="mark">A</span><span>ARIADNE</span></a>
-        <div className="nav-note">PUBLIC USERNAME SEARCH · NO GUESSING</div>
+        <div className="nav-meta">
+          <span className="nav-note">EVIDENCE-FIRST PUBLIC PROFILE SEARCH</span>
+          {sourceStats?.direct !== undefined && <span className="nav-count">{sourceStats.direct} exact checks</span>}
+        </div>
       </header>
 
       <section className="hero">
-        <div className="eyebrow">SEARCH PUBLIC PROFILES</div>
-        <h1>See where a username<br /><em>shows up.</em></h1>
-        <p className="lede">Type a username and Ariadne checks public profile pages. It separates matches a site can verify from pages that still need a quick look from you.</p>
+        <div className="hero-intro">
+          <div className="eyebrow">PUBLIC USERNAME INTELLIGENCE</div>
+          <h1>Trace a username<br /><em>without guessing.</em></h1>
+          <p className="lede">Ariadne checks public profile sources, separates exact account evidence from plausible pages, and shows how much of each scan it could actually resolve.</p>
+          <div className="hero-stats" aria-label="Ariadne coverage">
+            <span><strong>{sourceStats?.standard ?? '—'}</strong> public sites</span>
+            <span><strong>{sourceStats?.direct ?? '—'}</strong> exact checks</span>
+            <span><strong>0</strong> searches stored</span>
+          </div>
+        </div>
 
         <div className="mode-tabs" aria-label="Search mode">
           <button type="button" className={mode === 'solo' ? 'active' : ''} onClick={() => { setMode('solo'); setError(''); }}>Search one</button>
@@ -295,7 +307,10 @@ export default function App() {
           </div>
 
           <EvidenceOverview data={data} />
+          {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
 
+          <div className="filter-deck">
+            <div className="filter-deck-head"><span>Explore results</span><small>{visible.length} shown</small></div>
           <div className="filters" aria-label="Filter results">
             {(['ALL', 'FOUND', 'POSSIBLE', 'NOT_FOUND', 'UNKNOWN', 'BLOCKED', 'SKIPPED'] as const).map((item) => (
               <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item === 'ALL' ? 'All' : statusLabel[item]}</button>
@@ -317,6 +332,7 @@ export default function App() {
               ))}
             </div>
           )}
+          </div>
 
           <div className="results-list">{visible.map((result) => <ResultCard key={result.sourceId} result={result} />)}</div>
         </section>
@@ -363,6 +379,75 @@ function EvidenceOverview({ data }: { data: SearchResponse }) {
       <div><span>Couldn’t check</span><strong>{couldNotCheck}</strong><small>The site blocked us or gave an unclear answer</small></div>
       <div><span>No profile found</span><strong>{data.summary.NOT_FOUND}</strong><small>Only exact site checks can show this</small></div>
     </div>
+  );
+}
+
+function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; complete: boolean }) {
+  const funnelMax = Math.max(1, analytics.funnel[0]?.value ?? 1);
+  const signalCategories = analytics.categories.filter((item) => item.found + item.possible > 0);
+  const categoryMax = Math.max(1, ...signalCategories.map((item) => item.found + item.possible));
+
+  return (
+    <section className="scan-insights" aria-label="Scan analytics">
+      <div className="insights-head">
+        <div>
+          <div className="eyebrow">SCAN ANALYTICS</div>
+          <h3>What this scan actually resolved</h3>
+        </div>
+        <span className={complete ? 'scan-state complete' : 'scan-state'}>{complete ? 'Complete' : 'Updating'}</span>
+      </div>
+      <p className="insights-intro">These metrics are calculated from this scan in your browser. They describe source coverage and evidence quality, not the probability that matching usernames belong to the same person.</p>
+
+      <div className="metric-grid">
+        <article><span>Coverage</span><strong>{analytics.coveragePercent}%</strong><small>{analytics.returned}/{analytics.sourceCount} sources returned</small></article>
+        <article><span>Exact resolution</span><strong>{analytics.exactResolutionPercent}%</strong><small>{analytics.exactDecisions}/{analytics.exactAttempted} exact checks reached a decision</small></article>
+        <article><span>Verified share</span><strong>{analytics.verifiedSharePercent}%</strong><small>{analytics.verifiedMatches} verified of {analytics.verifiedMatches + analytics.possibleMatches} positive signals</small></article>
+        <article><span>Uncertainty</span><strong>{analytics.uncertaintyPercent}%</strong><small>Blocked + unclear among attempted checks</small></article>
+        <article><span>P90 response</span><strong>{analytics.p90LatencyMs} ms</strong><small>Median {analytics.medianLatencyMs} ms across attempted sources</small></article>
+      </div>
+
+      <div className="analytics-grid">
+        <article className="analytics-card funnel-card">
+          <div className="analytics-card-head">
+            <div><span>Evidence funnel</span><strong>From checks to verified matches</strong></div>
+          </div>
+          <div className="funnel-chart">
+            {analytics.funnel.map((item) => (
+              <div className="funnel-row" key={item.label}>
+                <div className="funnel-label"><span>{item.label}</span><strong>{item.value}</strong></div>
+                <div className="bar-track" aria-hidden="true"><span style={{ width: `${Math.max(item.value > 0 ? 4 : 0, (item.value / funnelMax) * 100)}%` }} /></div>
+                <small>{item.note}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="analytics-card category-card">
+          <div className="analytics-card-head">
+            <div><span>Profile footprint</span><strong>Where signals cluster</strong></div>
+            <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
+          </div>
+          {signalCategories.length ? (
+            <div className="category-chart">
+              {signalCategories.map((item) => (
+                <div className="category-row" key={item.category}>
+                  <div className="category-label"><span>{item.label}</span><small>{item.found} found · {item.possible} maybe</small></div>
+                  <div className="stack-track" aria-hidden="true">
+                    <span className="stack-found" style={{ width: `${(item.found / categoryMax) * 100}%` }} />
+                    <span className="stack-maybe" style={{ width: `${(item.possible / categoryMax) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="empty-chart">No Found or Maybe signals yet.</p>}
+        </article>
+      </div>
+
+      <details className="metric-notes">
+        <summary>How these metrics are calculated</summary>
+        <p><strong>Exact resolution</strong> is the share of exact checks that returned either Found or No match. <strong>Verified share</strong> compares Found with the combined Found + Maybe signals. <strong>Uncertainty</strong> is Blocked + Couldn’t tell among attempted checks. Response times are observed during this scan only.</p>
+      </details>
+    </section>
   );
 }
 
