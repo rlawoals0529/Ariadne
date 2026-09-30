@@ -4,7 +4,7 @@ import { sources, type SourceDefinition } from './sources.js';
 
 const TIMEOUT_MS = 4500;
 const CONCURRENCY = 5;
-export const SEARCH_BATCH_SIZE = 20;
+export const SEARCH_BATCH_SIZE = 30;
 
 // These inherited catalog entries currently rely on weaker availability/existence helpers,
 // third-party mirrors, or have been replaced by stronger exact-username adapters.
