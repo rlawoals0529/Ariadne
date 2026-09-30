@@ -403,7 +403,7 @@ export default function App() {
 
           <div className="filter-deck" id="evidence-explorer">
             <div className="filter-deck-head">
-              <div><span>Explore results</span><small>{visible.length} of {data.results.length} shown</small></div>
+              <div><span>Evidence Explorer</span><small>{visible.length} of {data.results.length} sources shown</small></div>
               {activeFilterCount > 0 && <button className="clear-filters" onClick={clearResultFilters}>Clear {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}</button>}
             </div>
 
@@ -862,29 +862,48 @@ function FriendGame({ title, value, note }: { title: string; value: string; note
 function ResultCard({ result }: { result: SourceResult }) {
   const [open, setOpen] = useState(result.status === 'FOUND' || result.status === 'POSSIBLE');
   const basisLabel = result.evidenceBasis === 'direct-api' ? 'Verified by site' : 'Needs a look';
-  const quickNote = result.status === 'FOUND' ? 'site confirmed it' : result.status === 'POSSIBLE' ? 'you should check' : '';
+  const statusNote: Record<ResultStatus, string> = {
+    FOUND: 'site confirmed username',
+    POSSIBLE: 'open to review',
+    NOT_FOUND: 'exact check returned no match',
+    UNKNOWN: 'not enough evidence',
+    BLOCKED: 'site limited the check',
+    SKIPPED: 'username format did not fit',
+  };
+
   return (
     <article className={`result-card status-${result.status.toLowerCase().replace('_', '-')}`}>
       <div className="result-main">
         <button className="result-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+          <span className="result-status-rail" aria-hidden="true" />
           <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
           <span className="source-title">
-            <span className="source-line"><strong>{result.sourceName}</strong>{result.nsfw && <span className="nsfw-badge">18+</span>}<span className="category-badge">{result.category}</span><span className={`basis-badge ${result.evidenceBasis}`}>{basisLabel}</span></span>
+            <span className="source-line"><strong>{result.sourceName}</strong>{result.nsfw && <span className="nsfw-badge">18+</span>}</span>
+            <span className="result-meta-line"><span className="category-badge">{CATEGORY_LABELS[result.category]}</span><span className={`basis-badge ${result.evidenceBasis}`}>{basisLabel}</span></span>
             <small>{friendlyReason(result)}</small>
           </span>
-          <span className="status-pill">{statusLabel[result.status]}</span>
-          <span className="confidence">{quickNote}</span>
-          <span className="chevron">{open ? '−' : '+'}</span>
+          <span className="result-verdict">
+            <span className="status-pill">{statusLabel[result.status]}</span>
+            <small>{statusNote[result.status]}</small>
+          </span>
+          <span className="chevron" aria-hidden="true">{open ? '−' : '+'}</span>
         </button>
-        <a className="result-open" href={result.profileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${result.sourceName} profile`}>Open <span aria-hidden="true">↗</span></a>
+        <a className="result-open" href={result.profileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${result.sourceName} profile`}>Open profile <span aria-hidden="true">↗</span></a>
       </div>
       {open && (
         <div className="evidence-panel">
+          <div className="evidence-panel-head">
+            <div>
+              <span className="eyebrow">WHY ARIADNE MARKED THIS {statusLabel[result.status].toUpperCase()}</span>
+              <strong>{friendlyReason(result)}</strong>
+            </div>
+            <span className={`basis-badge ${result.evidenceBasis}`}>{basisLabel}</span>
+          </div>
           <div className="evidence-explainer">
             <strong>{basisLabel}</strong>
             <span>{result.evidenceBasis === 'direct-api' ? 'This site gave Ariadne the username directly, so it can be checked exactly.' : 'This page looks like a profile, but the site did not give Ariadne enough information to confirm the username on its own.'}</span>
           </div>
-          <div className="actions"><a href={result.profileUrl} target="_blank" rel="noreferrer">Open profile</a><button onClick={() => copy(result.profileUrl)}>Copy link</button><button onClick={() => copy(JSON.stringify(result, null, 2))}>Copy details</button></div>
+          <div className="actions"><a href={result.profileUrl} target="_blank" rel="noreferrer">Open profile</a><button onClick={() => copy(result.profileUrl)}>Copy link</button><button onClick={() => copy(JSON.stringify(result, null, 2))}>Copy evidence</button></div>
           <details className="technical-details">
             <summary>Technical details</summary>
             <div className="evidence-grid">
