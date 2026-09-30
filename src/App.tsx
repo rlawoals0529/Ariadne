@@ -610,8 +610,7 @@ function ProfileSummary({
           <div><div className="eyebrow">SCAN MIX</div><h4>What came back</h4></div>
           <span>{data.results.length} results</span>
         </div>
-        <div className="mix-track" role="img" aria-label={mix.map((item) => `${item.label}: ${item.value}`).join(', ')}
-          >
+        <div className="mix-track" role="img" aria-label={mix.map((item) => `${item.label}: ${item.value}`).join(', ')}>
           {mix.filter((item) => item.value > 0).map((item) => (
             <span key={item.key} className={`mix-${item.key}`} style={{ width: `${(item.value / mixTotal) * 100}%` }} />
           ))}
@@ -654,14 +653,14 @@ function ProfileSummary({
             {found.slice(0, 4).map((result) => (
               <a className="profile-hit" key={result.sourceId} href={result.profileUrl} target="_blank" rel="noreferrer">
                 <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
-                <span><strong>{result.sourceName}</strong><small>{CATEGORY_LABELS[result.category]} · Found</small></span>
+                <span><strong>{result.sourceName}{result.nsfw && <span className="nsfw-badge">18+</span>}</strong><small>{CATEGORY_LABELS[result.category]} · Found</small></span>
                 <span aria-hidden="true">↗</span>
               </a>
             ))}
             {possible.slice(0, Math.max(0, 4 - Math.min(found.length, 4))).map((result) => (
               <a className="profile-hit possible-hit" key={result.sourceId} href={result.profileUrl} target="_blank" rel="noreferrer">
                 <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
-                <span><strong>{result.sourceName}</strong><small>{CATEGORY_LABELS[result.category]} · Maybe</small></span>
+                <span><strong>{result.sourceName}{result.nsfw && <span className="nsfw-badge">18+</span>}</strong><small>{CATEGORY_LABELS[result.category]} · Maybe</small></span>
                 <span aria-hidden="true">↗</span>
               </a>
             ))}
