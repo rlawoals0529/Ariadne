@@ -399,8 +399,10 @@ export default function App() {
               onShare={shareProfileSummary}
             />
           )}
-          {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
-          <SourceAvailabilityPanel stats={sourceStats} data={data} />
+          <div className="scan-support-stack" aria-label="Supporting scan details">
+            {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
+            <SourceAvailabilityPanel stats={sourceStats} data={data} />
+          </div>
 
           <div className="filter-deck" id="evidence-explorer">
             <div className="filter-deck-head">
@@ -526,8 +528,8 @@ function SourceAvailabilityPanel({ stats, data }: { stats: SourceStats | null; d
     <details className="source-availability">
       <summary>
         <span>
-          <span className="eyebrow">SOURCE AVAILABILITY</span>
-          <strong>{data ? `${scanAnswered}/${data.results.length} checks returned a usable result` : `${exactReady} exact provider checks ready`}</strong>
+          <span className="eyebrow">{data ? 'HOW ARIADNE CHECKED' : 'SOURCE COVERAGE'}</span>
+          <strong>{data ? `${scanAnswered}/${data.results.length} checks returned usable evidence` : `${exactReady} exact provider checks ready`}</strong>
         </span>
         <span className="availability-summary">{data ? `${scanIssues.length} need attention` : `${stats?.standard ?? '—'} public sites`}</span>
       </summary>
@@ -730,66 +732,74 @@ function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; compl
   const categoryMax = Math.max(1, ...signalCategories.map((item) => item.found + item.possible));
 
   return (
-    <section className="scan-insights" aria-label="Scan analytics">
-      <div className="insights-head">
-        <div>
-          <div className="eyebrow">SCAN ANALYTICS</div>
-          <h3>What this scan actually resolved</h3>
-        </div>
+    <details className="scan-insights">
+      <summary className="insights-summary">
+        <span className="insights-summary-title">
+          <span className="eyebrow">SCAN DETAILS</span>
+          <strong>How this scan performed</strong>
+        </span>
+        <span className="insights-summary-metrics" aria-label="Scan detail summary">
+          <span><strong>{analytics.coveragePercent}%</strong> coverage</span>
+          <span><strong>{analytics.exactResolutionPercent}%</strong> exact resolution</span>
+          <span><strong>{analytics.uncertaintyPercent}%</strong> uncertainty</span>
+        </span>
         <span className={complete ? 'scan-state complete' : 'scan-state'}>{complete ? 'Complete' : 'Updating'}</span>
-      </div>
-      <p className="insights-intro">These metrics are calculated from this scan in your browser. They describe source coverage and evidence quality, not the probability that matching usernames belong to the same person.</p>
+      </summary>
 
-      <div className="metric-grid">
-        <article><span>Coverage</span><strong>{analytics.coveragePercent}%</strong><small>{analytics.returned}/{analytics.sourceCount} sources returned</small></article>
-        <article><span>Exact resolution</span><strong>{analytics.exactResolutionPercent}%</strong><small>{analytics.exactDecisions}/{analytics.exactAttempted} exact checks reached a decision</small></article>
-        <article><span>Verified share</span><strong>{analytics.verifiedSharePercent}%</strong><small>{analytics.verifiedMatches} verified of {analytics.verifiedMatches + analytics.possibleMatches} positive signals</small></article>
-        <article><span>Uncertainty</span><strong>{analytics.uncertaintyPercent}%</strong><small>Blocked + unclear among attempted checks</small></article>
-        <article><span>P90 response</span><strong>{analytics.p90LatencyMs} ms</strong><small>Median {analytics.medianLatencyMs} ms across attempted sources</small></article>
-      </div>
+      <div className="insights-body">
+        <p className="insights-intro">These numbers describe source coverage and evidence quality from this scan. They do not estimate whether matching usernames belong to the same person.</p>
 
-      <div className="analytics-grid">
-        <article className="analytics-card funnel-card">
-          <div className="analytics-card-head">
-            <div><span>Evidence funnel</span><strong>From checks to verified matches</strong></div>
-          </div>
-          <div className="funnel-chart">
-            {analytics.funnel.map((item) => (
-              <div className="funnel-row" key={item.label}>
-                <div className="funnel-label"><span>{item.label}</span><strong>{item.value}</strong></div>
-                <div className="bar-track" aria-hidden="true"><span style={{ width: `${Math.max(item.value > 0 ? 4 : 0, (item.value / funnelMax) * 100)}%` }} /></div>
-                <small>{item.note}</small>
-              </div>
-            ))}
-          </div>
-        </article>
+        <div className="metric-grid">
+          <article><span>Coverage</span><strong>{analytics.coveragePercent}%</strong><small>{analytics.returned}/{analytics.sourceCount} sources returned</small></article>
+          <article><span>Exact resolution</span><strong>{analytics.exactResolutionPercent}%</strong><small>{analytics.exactDecisions}/{analytics.exactAttempted} exact checks reached a decision</small></article>
+          <article><span>Verified share</span><strong>{analytics.verifiedSharePercent}%</strong><small>{analytics.verifiedMatches} verified of {analytics.verifiedMatches + analytics.possibleMatches} positive signals</small></article>
+          <article><span>Uncertainty</span><strong>{analytics.uncertaintyPercent}%</strong><small>Blocked + unclear among attempted checks</small></article>
+          <article><span>P90 response</span><strong>{analytics.p90LatencyMs} ms</strong><small>Median {analytics.medianLatencyMs} ms across attempted sources</small></article>
+        </div>
 
-        <article className="analytics-card category-card">
-          <div className="analytics-card-head">
-            <div><span>Profile footprint</span><strong>Where signals cluster</strong></div>
-            <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
-          </div>
-          {signalCategories.length ? (
-            <div className="category-chart">
-              {signalCategories.map((item) => (
-                <div className="category-row" key={item.category}>
-                  <div className="category-label"><span>{item.label}</span><small>{item.found} found · {item.possible} maybe</small></div>
-                  <div className="stack-track" aria-hidden="true">
-                    <span className="stack-found" style={{ width: `${(item.found / categoryMax) * 100}%` }} />
-                    <span className="stack-maybe" style={{ width: `${(item.possible / categoryMax) * 100}%` }} />
-                  </div>
+        <div className="analytics-grid">
+          <article className="analytics-card funnel-card">
+            <div className="analytics-card-head">
+              <div><span>Evidence funnel</span><strong>From checks to verified matches</strong></div>
+            </div>
+            <div className="funnel-chart">
+              {analytics.funnel.map((item) => (
+                <div className="funnel-row" key={item.label}>
+                  <div className="funnel-label"><span>{item.label}</span><strong>{item.value}</strong></div>
+                  <div className="bar-track" aria-hidden="true"><span style={{ width: `${Math.max(item.value > 0 ? 4 : 0, (item.value / funnelMax) * 100)}%` }} /></div>
+                  <small>{item.note}</small>
                 </div>
               ))}
             </div>
-          ) : <p className="empty-chart">No Found or Maybe signals yet.</p>}
-        </article>
-      </div>
+          </article>
 
-      <details className="metric-notes">
-        <summary>How these metrics are calculated</summary>
-        <p><strong>Exact resolution</strong> is the share of exact checks that returned either Found or No match. <strong>Verified share</strong> compares Found with the combined Found + Maybe signals. <strong>Uncertainty</strong> is Blocked + Couldn’t tell among attempted checks. Response times are observed during this scan only.</p>
-      </details>
-    </section>
+          <article className="analytics-card category-card">
+            <div className="analytics-card-head">
+              <div><span>Signal categories</span><strong>Where Found and Maybe appeared</strong></div>
+              <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
+            </div>
+            {signalCategories.length ? (
+              <div className="category-chart">
+                {signalCategories.map((item) => (
+                  <div className="category-row" key={item.category}>
+                    <div className="category-label"><span>{item.label}</span><small>{item.found} found · {item.possible} maybe</small></div>
+                    <div className="stack-track" aria-hidden="true">
+                      <span className="stack-found" style={{ width: `${(item.found / categoryMax) * 100}%` }} />
+                      <span className="stack-maybe" style={{ width: `${(item.possible / categoryMax) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="empty-chart">No Found or Maybe signals yet.</p>}
+          </article>
+        </div>
+
+        <details className="metric-notes">
+          <summary>How these metrics are calculated</summary>
+          <p><strong>Exact resolution</strong> is the share of exact checks that returned either Found or No match. <strong>Verified share</strong> compares Found with the combined Found + Maybe signals. <strong>Uncertainty</strong> is Blocked + Couldn’t tell among attempted checks. Response times are observed during this scan only.</p>
+        </details>
+      </div>
+    </details>
   );
 }
 
