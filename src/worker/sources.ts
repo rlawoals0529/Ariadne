@@ -14,7 +14,7 @@ export interface SourceDefinition {
 
 const jsonHeaders = {
   Accept: 'application/json',
-  'User-Agent': 'Ariadne/0.2 public-profile-verifier',
+  'User-Agent': 'Ariadne/0.4 public-profile-verifier',
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<Response> {
@@ -108,6 +108,43 @@ const coreSources: SourceDefinition[] = [
       if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
       const data = response.ok ? (await response.json() as { data?: { name?: string } }) : null;
       return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.data?.name }) };
+    },
+  },
+  {
+    id: 'anilist',
+    name: 'AniList',
+    category: 'media',
+    nsfw: false,
+    profileUrl: (u) => `https://anilist.co/user/${encodeURIComponent(u)}/`,
+    validate: (u) => /^[A-Za-z0-9]{2,20}$/.test(u),
+    probe: async (u, signal) => {
+      const response = await fetch('https://graphql.anilist.co/', {
+        method: 'POST',
+        headers: { ...jsonHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'query($name:String){User(name:$name){name}}',
+          variables: { name: u },
+        }),
+        signal,
+      });
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      if (!response.ok) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u }) };
+      }
+      const data = await response.json() as { data?: { User?: { name?: string } | null } };
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: data.data?.User?.name,
+          missing: data.data?.User === null,
+        }),
+      };
     },
   },
 ];
