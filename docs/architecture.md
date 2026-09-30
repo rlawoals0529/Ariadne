@@ -51,6 +51,10 @@ Current exact adapters are:
 - DEV Community
 - Hugging Face
 - Keybase
+- Lichess
+- Scratch
+- Roblox
+- Mastodon.social (WebFinger)
 
 ### Wide catalog
 
@@ -100,6 +104,6 @@ Future persistence, saved friend groups, or public sharing features must be opt-
 
 ## Validation
 
-Unit tests cover evidence classification, catalog selection, NSFW exclusion, exact-adapter behavior, broad-source count, generic `POSSIBLE` behavior, the broad-source false-negative guard, challenge-page blocking, and friend overlap/game calculations. CI also runs the production build, Wrangler dry deploy, and production dependency audit before merge.
+Unit tests cover evidence classification, catalog selection, NSFW exclusion, exact-adapter identity matches and explicit misses, broad-source count, generic `POSSIBLE` behavior, the broad-source false-negative guard, challenge-page blocking, and friend overlap/game calculations. CI also runs the production build, Wrangler dry deploy, and production dependency audit before merge.
 
 Live source behavior can drift independently of Ariadne. A catalog entry passing unit tests does not imply that the external site currently permits automated verification. Runtime blocks and ambiguous responses remain `BLOCKED` or `UNKNOWN` rather than being converted into fabricated match claims.
