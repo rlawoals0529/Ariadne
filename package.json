@@ -1,0 +1,27 @@
+{
+  "name": "ariadne",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "check": "npm run test && npm run build && wrangler deploy --dry-run",
+    "test": "rm -rf .test-dist && tsc -p tsconfig.tests.json && node --test tests/evidence.test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "react": "19.2.1",
+    "react-dom": "19.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "typescript": "5.9.3",
+    "vite": "7.0.0",
+    "wrangler": "4.136.1",
+    "@cloudflare/vite-plugin": "1.52.1"
+  }
+}
