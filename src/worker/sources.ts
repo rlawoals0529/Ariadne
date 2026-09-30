@@ -68,7 +68,7 @@ export const sources: SourceDefinition[] = [
           },
         };
       }
-      return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.id }) };
+      return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.id, caseSensitive: true }) };
     },
   },
   {
