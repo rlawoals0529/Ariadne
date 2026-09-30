@@ -1,4 +1,4 @@
-import { searchableSourceStats, searchUsername, validateCursor, validateUsername } from './search.js';
+import { searchableSourceStats, searchUsername, sourceAvailability, validateCursor, validateUsername } from './search.js';
 import { sourceStats } from './sources.js';
 
 type RateLimit = { limit(options: { key: string }): Promise<{ success: boolean }> };
@@ -27,7 +27,11 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}): 
 }
 
 function publicSourceStats(env: Env) {
-  return { ...searchableSourceStats(env), provenance: sourceStats.provenance };
+  return {
+    ...searchableSourceStats(env),
+    sourceAvailability: sourceAvailability(env),
+    provenance: sourceStats.provenance,
+  };
 }
 
 async function handleSearch(request: Request, env: Env): Promise<Response> {
