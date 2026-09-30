@@ -1,5 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import type { ResultStatus, SearchResponse, SourceResult } from './shared/types';
+
+const FRIEND_LIMIT = 6;
+const FRIEND_SCAN_CONCURRENCY = 2;
 
 const statusLabel: Record<SourceResult['status'], string> = {
   FOUND: 'Found',
@@ -15,32 +19,6 @@ type SensitivityFilter = 'ALL' | 'SFW' | 'NSFW';
 type EvidenceFilter = 'ALL' | 'DIRECT' | 'HEURISTIC';
 type Mode = 'solo' | 'party';
 
-type PairMatch = {
-  names: [string, string];
-  shared: number;
-  verifiedShared: number;
-  topCategory: string | null;
-  topCategoryCount: number;
-};
-
-type PartyMetrics = {
-  participants: Array<{
-    query: string;
-    confirmed: number;
-    possible: number;
-    trail: number;
-    unique: string[];
-    categories: Array<[string, number]>;
-  }>;
-  shared: string[];
-  verifiedShared: string[];
-  mostFound: string[];
-  mostUnique: string[];
-  closestPair: PairMatch | null;
-  mostDifferentPair: PairMatch | null;
-  categoryPair: PairMatch | null;
-};
-
 function emptySummary(): Record<ResultStatus, number> {
   return { FOUND: 0, POSSIBLE: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
 }
@@ -51,15 +29,11 @@ function summarize(results: SourceResult[]) {
   return summary;
 }
 
-function isTrail(result: SourceResult) {
-  return result.status === 'FOUND' || result.status === 'POSSIBLE';
-}
-
 function friendlyReason(result: SourceResult) {
   switch (result.status) {
     case 'FOUND': return 'The site returned this exact username.';
     case 'POSSIBLE': return 'This looks like a real profile, but Ariadne could not confirm the username automatically.';
-    case 'NOT_FOUND': return 'The site said this profile does not exist.';
+    case 'NOT_FOUND': return 'This site’s exact username check said the profile was not there.';
     case 'UNKNOWN': return 'Ariadne did not get enough information to decide.';
     case 'BLOCKED': return 'The site blocked or limited this check.';
     case 'SKIPPED': return 'This username does not fit this site’s username rules.';
@@ -92,119 +66,6 @@ async function scanUsername(username: string, includeNsfw: boolean, onProgress?:
 
   if (!latest) throw new Error('Search returned no source batches');
   return latest;
-}
-
-function buildPartyMetrics(reports: SearchResponse[]): PartyMetrics {
-  const sourceUsers = new Map<string, Set<string>>();
-  const verifiedSourceUsers = new Map<string, Set<string>>();
-  const sourceNames = new Map<string, string>();
-  const sourceCategories = new Map<string, string>();
-
-  for (const report of reports) {
-    for (const result of report.results.filter(isTrail)) {
-      sourceNames.set(result.sourceId, result.sourceName);
-      sourceCategories.set(result.sourceId, result.category);
-      const users = sourceUsers.get(result.sourceId) ?? new Set<string>();
-      users.add(report.query);
-      sourceUsers.set(result.sourceId, users);
-
-      if (result.status === 'FOUND') {
-        const verified = verifiedSourceUsers.get(result.sourceId) ?? new Set<string>();
-        verified.add(report.query);
-        verifiedSourceUsers.set(result.sourceId, verified);
-      }
-    }
-  }
-
-  const shared = [...sourceUsers.entries()]
-    .filter(([, users]) => users.size >= 2)
-    .map(([sourceId]) => sourceNames.get(sourceId) ?? sourceId)
-    .sort((a, b) => a.localeCompare(b));
-
-  const verifiedShared = [...verifiedSourceUsers.entries()]
-    .filter(([, users]) => users.size >= 2)
-    .map(([sourceId]) => sourceNames.get(sourceId) ?? sourceId)
-    .sort((a, b) => a.localeCompare(b));
-
-  const participants = reports.map((report) => {
-    const trails = report.results.filter(isTrail);
-    const unique = trails
-      .filter((result) => sourceUsers.get(result.sourceId)?.size === 1)
-      .map((result) => result.sourceName)
-      .sort((a, b) => a.localeCompare(b));
-    const categoryCounts = new Map<string, number>();
-    for (const result of trails) categoryCounts.set(result.category, (categoryCounts.get(result.category) ?? 0) + 1);
-    const categories = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-
-    return {
-      query: report.query,
-      confirmed: report.summary.FOUND,
-      possible: report.summary.POSSIBLE,
-      trail: report.summary.FOUND + report.summary.POSSIBLE,
-      unique,
-      categories,
-    };
-  });
-
-  function leaders(value: (participant: PartyMetrics['participants'][number]) => number) {
-    const max = Math.max(0, ...participants.map(value));
-    return participants.filter((participant) => value(participant) === max).map((participant) => participant.query);
-  }
-
-  const resultSets = new Map<string, Set<string>>();
-  const verifiedSets = new Map<string, Set<string>>();
-  for (const report of reports) {
-    resultSets.set(report.query, new Set(report.results.filter(isTrail).map((result) => result.sourceId)));
-    verifiedSets.set(report.query, new Set(report.results.filter((result) => result.status === 'FOUND').map((result) => result.sourceId)));
-  }
-
-  const pairs: PairMatch[] = [];
-  for (let left = 0; left < reports.length; left += 1) {
-    for (let right = left + 1; right < reports.length; right += 1) {
-      const a = reports[left].query;
-      const b = reports[right].query;
-      const aSet = resultSets.get(a) ?? new Set<string>();
-      const bSet = resultSets.get(b) ?? new Set<string>();
-      const sharedIds = [...aSet].filter((sourceId) => bSet.has(sourceId));
-      const aVerified = verifiedSets.get(a) ?? new Set<string>();
-      const bVerified = verifiedSets.get(b) ?? new Set<string>();
-      const verifiedCount = [...aVerified].filter((sourceId) => bVerified.has(sourceId)).length;
-      const categoryCounts = new Map<string, number>();
-      for (const sourceId of sharedIds) {
-        const category = sourceCategories.get(sourceId) ?? 'other';
-        categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
-      }
-      const topCategoryEntry = [...categoryCounts.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
-      pairs.push({
-        names: [a, b],
-        shared: sharedIds.length,
-        verifiedShared: verifiedCount,
-        topCategory: topCategoryEntry?.[0] ?? null,
-        topCategoryCount: topCategoryEntry?.[1] ?? 0,
-      });
-    }
-  }
-
-  const closestPair = pairs.length
-    ? [...pairs].sort((a, b) => b.verifiedShared - a.verifiedShared || b.shared - a.shared || a.names.join('|').localeCompare(b.names.join('|')))[0]
-    : null;
-  const mostDifferentPair = pairs.length
-    ? [...pairs].sort((a, b) => a.shared - b.shared || a.verifiedShared - b.verifiedShared || a.names.join('|').localeCompare(b.names.join('|')))[0]
-    : null;
-  const categoryPair = pairs.some((pair) => pair.topCategoryCount > 0)
-    ? [...pairs].sort((a, b) => b.topCategoryCount - a.topCategoryCount || b.verifiedShared - a.verifiedShared || b.shared - a.shared)[0]
-    : null;
-
-  return {
-    participants,
-    shared,
-    verifiedShared,
-    mostFound: leaders((participant) => participant.confirmed),
-    mostUnique: leaders((participant) => participant.unique.length),
-    closestPair,
-    mostDifferentPair,
-    categoryPair,
-  };
 }
 
 export default function App() {
@@ -241,7 +102,7 @@ export default function App() {
     [data, filter, sensitivityFilter, evidenceFilter],
   );
 
-  const partyMetrics = useMemo(() => buildPartyMetrics(partyData), [partyData]);
+  const partyMetrics = useMemo(() => buildFriendMetrics(partyData), [partyData]);
 
   async function submitSolo(event: FormEvent) {
     event.preventDefault();
@@ -269,6 +130,10 @@ export default function App() {
       setError('Add at least two usernames to compare.');
       return;
     }
+    if (names.length > FRIEND_LIMIT) {
+      setError(`Compare up to ${FRIEND_LIMIT} usernames at a time.`);
+      return;
+    }
     if (unique.length !== names.length) {
       setError('Use a different username for each person.');
       return;
@@ -280,16 +145,23 @@ export default function App() {
     setLoading(true);
 
     try {
-      const reports: SearchResponse[] = [];
-      for (let index = 0; index < names.length; index += 1) {
-        const username = names[index];
-        setPartyProgress(`Checking @${username} · ${index + 1} of ${names.length}`);
-        const report = await scanUsername(username, includeNsfw, (partial) => {
-          setPartyProgress(`Checking @${username} · ${partial.results.length}/${partial.sourceCount} sites · ${index + 1} of ${names.length}`);
-        });
-        reports.push(report);
-        setPartyData([...reports]);
+      const reports: Array<SearchResponse | undefined> = new Array(names.length);
+      let completed = 0;
+
+      for (let start = 0; start < names.length; start += FRIEND_SCAN_CONCURRENCY) {
+        const group = names.slice(start, start + FRIEND_SCAN_CONCURRENCY);
+        await Promise.all(group.map(async (username, offset) => {
+          const index = start + offset;
+          const report = await scanUsername(username, includeNsfw, (partial) => {
+            setPartyProgress(`Checking @${username} · ${partial.results.length}/${partial.sourceCount} sites · ${completed}/${names.length} finished`);
+          });
+          reports[index] = report;
+          completed += 1;
+          setPartyData(reports.filter((item): item is SearchResponse => Boolean(item)));
+          setPartyProgress(`${completed}/${names.length} people finished`);
+        }));
       }
+
       setPartyProgress('');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Friend comparison failed');
@@ -303,7 +175,7 @@ export default function App() {
   }
 
   function addPartyMember() {
-    setPartyQueries((current) => current.length >= 4 ? current : [...current, '']);
+    setPartyQueries((current) => current.length >= FRIEND_LIMIT ? current : [...current, '']);
   }
 
   function removePartyMember(index: number) {
@@ -311,7 +183,9 @@ export default function App() {
   }
 
   function exportJson() {
-    const payload = mode === 'party' ? { mode: 'friend-compare', generatedAt: new Date().toISOString(), reports: partyData } : data;
+    const payload = mode === 'party'
+      ? { mode: 'friend-compare', generatedAt: new Date().toISOString(), reports: partyData, games: partyMetrics }
+      : data;
     if (!payload) return;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -324,11 +198,14 @@ export default function App() {
 
   async function copyPartyCard() {
     const closest = partyMetrics.closestPair;
+    const twins = partyMetrics.internetTwins;
     const lines = [
       'ARIADNE · FRIEND MODE',
       ...partyMetrics.participants.map((participant) => `@${participant.query}: ${participant.confirmed} found, ${participant.possible} maybe, ${participant.unique.length} only-theirs`),
       `Sites in common: ${partyMetrics.shared.length}`,
-      closest ? `Most in common: @${closest.names[0]} + @${closest.names[1]} (${closest.shared} shared, ${closest.verifiedShared} verified)` : 'Most in common: —',
+      `Everyone shares: ${partyMetrics.everyoneSites.length}`,
+      closest ? `Most in common: @${closest.names[0]} + @${closest.names[1]} (${closest.shared} shared)` : 'Most in common: —',
+      twins ? `Internet twins: @${twins.names[0]} + @${twins.names[1]} (${twins.similarity}% overlap in this scan)` : 'Internet twins: —',
       'Public profile pages only. “Maybe” results still need a quick manual check.',
     ];
     await copy(lines.join('\n'));
@@ -368,8 +245,8 @@ export default function App() {
         ) : (
           <form onSubmit={submitParty} className="search-form party-form">
             <div className="party-form-head">
-              <div><label>Friends</label><small>Compare 2–4 usernames. After the scan, Ariadne shows what you have in common and a few friend-game cards.</small></div>
-              <button type="button" className="text-button" onClick={addPartyMember} disabled={partyQueries.length >= 4 || loading}>+ Add friend</button>
+              <div><label>Friends</label><small>Compare 2–6 usernames. Ariadne checks up to two people at once, then shows where your public profiles overlap.</small></div>
+              <button type="button" className="text-button" onClick={addPartyMember} disabled={partyQueries.length >= FRIEND_LIMIT || loading}>+ Add friend</button>
             </div>
             <div className="party-inputs">
               {partyQueries.map((value, index) => (
@@ -447,7 +324,7 @@ export default function App() {
 
       {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onCopy={copyPartyCard} />}
 
-      <footer><span>ARIADNE v0.5</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
+      <footer><span>ARIADNE v0.7</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
     </main>
   );
 }
@@ -484,12 +361,17 @@ function EvidenceOverview({ data }: { data: SearchResponse }) {
       <div><span>Found</span><strong>{found}</strong><small>The site returned the exact username</small></div>
       <div><span>Maybe</span><strong>{maybe}</strong><small>The profile looks real; open it to check</small></div>
       <div><span>Couldn’t check</span><strong>{couldNotCheck}</strong><small>The site blocked us or gave an unclear answer</small></div>
-      <div><span>No profile found</span><strong>{data.summary.NOT_FOUND}</strong><small>The site said this profile was not there</small></div>
+      <div><span>No profile found</span><strong>{data.summary.NOT_FOUND}</strong><small>Only exact site checks can show this</small></div>
     </div>
   );
 }
 
-function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports: SearchResponse[]; metrics: PartyMetrics; loading: boolean; onExport: () => void; onCopy: () => void }) {
+function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onCopy: () => void }) {
+  const everyoneLabel = metrics.everyoneSites.length ? `${metrics.everyoneSites.length} ${metrics.everyoneSites.length === 1 ? 'site' : 'sites'}` : 'None yet';
+  const everyoneNote = metrics.everyoneSites.length
+    ? `${metrics.verifiedEveryoneSites.length} verified for everyone${metrics.everyoneSites.length <= 3 ? ` · ${metrics.everyoneSites.join(', ')}` : ''}`
+    : 'No site appeared for every completed friend in this scan';
+
   return (
     <section className="results-section party-report">
       <div className="result-header">
@@ -499,9 +381,11 @@ function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports:
 
       <div className="friend-games" aria-label="Friend games">
         <PairGame title="Most in common" pair={metrics.closestPair} note={(pair) => `${pair.shared} shared sites · ${pair.verifiedShared} verified for both`} />
-        <PairGame title="Most different" pair={metrics.mostDifferentPair} note={(pair) => `${pair.shared} shared sites in this scan`} />
+        <PairGame title="Internet twins" pair={metrics.internetTwins} note={(pair) => `${pair.similarity}% of their found/maybe sites overlap in this scan`} />
+        <PairGame title="Most different" pair={metrics.mostDifferentPair} note={(pair) => `${pair.similarity}% overlap · ${pair.shared} shared sites`} />
         <PairGame title="Same corner" pair={metrics.categoryPair} note={(pair) => pair.topCategory ? `${pair.topCategoryCount} shared ${pair.topCategory} ${pair.topCategoryCount === 1 ? 'site' : 'sites'}` : 'No shared category yet'} />
         <FriendGame title="Most one-of-a-kind" value={metrics.mostUnique.map((name) => `@${name}`).join(' · ') || '—'} note="Most sites that did not show up for another friend" />
+        <FriendGame title="Everyone’s here" value={everyoneLabel} note={everyoneNote} />
       </div>
 
       <div className="party-scoreboard">
@@ -516,7 +400,11 @@ function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports:
       </div>
 
       <div className="shared-paths">
-        <div><div className="eyebrow">SITES IN COMMON</div><h3>Where you overlap</h3><p className="shared-note">{metrics.verifiedShared.length} of these were verified for at least two people.</p></div>
+        <div>
+          <div className="eyebrow">SITES IN COMMON</div>
+          <h3>Where you overlap</h3>
+          <p className="shared-note">{metrics.verifiedShared.length} were verified for at least two people · {metrics.everyoneSites.length} appeared for everyone completed.</p>
+        </div>
         {metrics.shared.length ? <div className="path-cloud">{metrics.shared.map((source) => <span key={source}>{source}</span>)}</div> : <p>No shared sites showed up in the completed scans.</p>}
       </div>
 
@@ -525,7 +413,7 @@ function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports:
   );
 }
 
-function PairGame({ title, pair, note }: { title: string; pair: PairMatch | null; note: (pair: PairMatch) => string }) {
+function PairGame({ title, pair, note }: { title: string; pair: FriendPair | null; note: (pair: FriendPair) => string }) {
   if (!pair) return <FriendGame title={title} value="—" note="Not enough people have finished scanning yet" />;
   return <FriendGame title={title} value={`@${pair.names[0]} + @${pair.names[1]}`} note={note(pair)} />;
 }

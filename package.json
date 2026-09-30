@@ -1,13 +1,13 @@
 {
   "name": "ariadne",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check": "npm run test && npm run build && wrangler deploy --dry-run",
-    "test": "rm -rf .test-dist && tsc -p tsconfig.tests.json && node --test tests/evidence.test.mjs",
+    "test": "rm -rf .test-dist && tsc -p tsconfig.tests.json && node --test tests/*.test.mjs",
     "deploy": "wrangler deploy"
   },
   "dependencies": {

@@ -2,76 +2,63 @@
 
 **Follow the thread. Keep the evidence.**
 
-Ariadne searches public profile pages for a username and keeps uncertainty visible. It does not turn a generic successful webpage response into a confirmed identity.
+Ariadne searches public profile pages for a username and keeps uncertainty visible. It does not treat a page loading as proof that an account exists, and it no longer treats weak page-level “missing” signals as proof that an account is absent.
 
-The core rule is simple: **a page loading is not proof that the account exists.** Exact username matches from a site's public API can become `FOUND`; broader page checks stay `POSSIBLE` until a person opens the profile and confirms it. Rate limits, anti-bot responses, network failures, and ambiguous responses stay `BLOCKED` or `UNKNOWN`.
+## v0.7 — bigger friend mode
 
-## v0.5 — clearer wording, better exact checks, more friend games
+Compare Friends supports **2–6 usernames** and checks up to two people at once. A full username scan is split into batches of up to 30 sites, reducing the number of browser-to-Worker requests while keeping outbound source checks capped at five concurrent connections per Worker request.
 
-v0.5 makes the app easier to understand without changing the conservative evidence model.
+Friend mode now includes:
 
-### Accuracy
+- **Most in common** — pair with the largest number of shared Found/Maybe sites;
+- **Internet twins** — pair with the highest overlap percentage in this scan;
+- **Most different** — pair with the lowest overlap percentage;
+- **Same corner** — pair with the strongest shared category such as gaming, social, or developer;
+- **Most one-of-a-kind** — person with the most sites not seen for another friend;
+- **Everyone’s here** — sites that appeared for every completed friend.
 
-Three sources that previously relied on broader profile rules now use stronger first-party public APIs:
+The games keep **Found** and **Maybe** separate and never promote an uncertain result into a confirmed identity. Friend comparisons remain local to the browser session and are not saved by Ariadne.
 
-- **Bluesky** — public AppView profile lookup;
-- **Chess.com** — read-only PubAPI player endpoint;
-- **Codeforces** — official `user.info` API.
+The Worker rate-limit budget is 40 search-batch requests per IP per minute. With the current source count and 30-site batches, a six-person comparison normally needs 30 search-batch requests, leaving headroom for normal use without removing abuse controls.
 
-Their weaker catalog duplicates are disabled, so Ariadne does not show the same site twice or prefer a heuristic result when an exact username check is available. Ariadne now has at least nine direct username adapters.
+## v0.6 — more exact username checks
 
-### Friend mode
+Ariadne upgraded **Codewars, DEV Community, Hugging Face, and Keybase** from broad page checks to first-party public username lookups. Along with GitHub, GitLab, Hacker News, Codeberg, Reddit, AniList, Bluesky, Chess.com, and Codeforces, Ariadne now has **13 exact username adapters**.
 
-The former Thread Party wording is simplified to **Compare friends**. The comparison still uses only the current browser session and is not saved.
+When an exact site endpoint returns the requested username, Ariadne may mark the result **Found**. If the endpoint explicitly reports that the account is absent, it may mark the result **No match**. A different username, rate limit, block, timeout, or ambiguous response stays uncertain.
 
-Friend mode now adds factual, lightweight game cards:
+## v0.5.1 — false-negative guard
 
-- **Most in common** — pair with the most shared sites, using verified overlap first when breaking ties;
-- **Most different** — pair with the fewest shared sites in the current scan;
-- **Same corner** — pair with the strongest shared category such as gaming, social, or developer sites;
-- **Most one-of-a-kind** — person with the most sites that did not appear for another friend.
+A real profile exposed an important flaw in the older broad-site rules: a stale or generic page marker could look like a “missing profile” response even when the profile existed. Twitch was one example.
 
-These are playful summaries of the scan, not privacy, safety, reputation, or identity scores. `POSSIBLE` / “Maybe” results still require a manual check.
+Ariadne now applies this rule globally:
 
-### Plain-language UI
+- **Exact first-party username checks** may return `NOT_FOUND` when the endpoint explicitly says the username is absent.
+- **Broad page/catalog checks may not return definitive `NOT_FOUND`.** Their negative-looking signals are downgraded to `UNKNOWN` / **Couldn’t tell**.
 
-Technical labels are translated in the main interface:
+This intentionally prefers an honest uncertain result over hiding a real account with a false negative.
 
-- `FOUND` → **Found**;
-- `POSSIBLE` → **Maybe**;
-- direct API evidence → **Verified by site**;
-- heuristic profile evidence → **Needs a look**;
-- technical response details are moved behind a **Technical details** disclosure.
+## Plain-language result model
 
-The JSON export keeps the full machine-readable evidence for advanced users.
+| Internal status | What the app says | Meaning |
+| --- | --- | --- |
+| `FOUND` | **Found** | The site returned the requested username. |
+| `POSSIBLE` | **Maybe** | The public profile page looks plausible, but Ariadne cannot confirm the username automatically. |
+| `NOT_FOUND` | **No match** | An exact site check explicitly reported that the username was absent. |
+| `UNKNOWN` | **Couldn’t tell** | The response was unclear, including weak broad-site missing signals. |
+| `BLOCKED` | **Blocked** | The site rate-limited, challenged, or otherwise prevented the check. |
+| `SKIPPED` | **Skipped** | The username does not fit that site’s username rules. |
 
-## v0.4 — evidence basis + broader coverage
-
-v0.4 made the distinction between strong and heuristic evidence visible and added AniList plus 22 curated first-party public-profile rules from Ariadne's pinned Sherlock source snapshot.
+The main interface uses plain wording such as **Verified by site** and **Needs a look**. HTTP codes and raw evidence stay under **Technical details**.
 
 ## Source model
 
 Ariadne combines two source tiers:
 
 - **Exact username adapters** use first-party public APIs that return an identifier Ariadne can compare with the requested username.
-- **Wide public-profile catalog** covers social, developer, gaming, creative, media, and community sites. The catalog is adapted from a pinned Sherlock Project source manifest and keeps heuristic hits separate from confirmed matches.
+- **Wide public-profile checks** cover additional social, developer, gaming, creative, media, community, and optional adult sites. Their positive results stay **Maybe**, and their negative results stay **Couldn’t tell** unless an exact adapter exists.
 
-Adult/explicit sources are **off by default**. Ariadne only checks public profile pages and public profile APIs; it does not use signup forms, password-reset flows, breach data, or authenticated/private account data.
-
-Large scans are split into small server-side batches. Each Worker request checks at most 20 sources with no more than five concurrent outbound connections.
-
-## Status model
-
-| Status | User-facing meaning | Internal meaning |
-| --- | --- | --- |
-| `FOUND` | Found | The source returned the requested identifier. |
-| `POSSIBLE` | Maybe | A public profile rule suggests a match, but Ariadne cannot confirm it automatically. |
-| `NOT_FOUND` | No match | The source returned a configured missing-profile signal. |
-| `UNKNOWN` | Couldn’t tell | The response did not support a reliable claim. |
-| `BLOCKED` | Blocked | Rate limiting, authentication, CAPTCHA, or anti-bot controls prevented verification. |
-| `SKIPPED` | Skipped | The username does not fit that source's username rules, so no request was sent. |
-
-Unknown is intentionally not treated as absence, and Maybe is intentionally not treated as Found.
+Adult/explicit sources are **off by default**. Ariadne only checks public profile pages and public profile APIs; it does not use signup forms, password-reset flows, breach data, or private account data.
 
 ## Stack
 
@@ -92,7 +79,7 @@ Validation:
 npm run check
 ```
 
-`check` runs evidence/catalog tests, TypeScript/build validation, and a Wrangler deployment dry run. Pull requests run the same build path in GitHub Actions before merge.
+`check` runs evidence, source, and friend-comparison tests, the production TypeScript/Vite build, and a Wrangler deployment dry run. Pull requests also run a production dependency audit before merge.
 
 ## Deployment
 
@@ -104,7 +91,7 @@ The Worker includes a Cloudflare Rate Limiting binding named `SEARCH_RATE_LIMITE
 
 ## Source provenance
 
-The wide catalog adapts public-profile rules from the MIT-licensed Sherlock Project manifest pinned to commit `e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`. Ariadne changes Sherlock-style yes/no semantics: generic catalog positives become `POSSIBLE`, challenge pages stay `BLOCKED`, and high-confidence `FOUND` results remain limited to exact identifier evidence.
+The wide catalog adapts public-profile rules from the MIT-licensed Sherlock Project manifest pinned to commit `e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`. Ariadne changes Sherlock-style yes/no semantics: catalog positives become `POSSIBLE`, catalog negatives do not prove absence, challenge pages stay `BLOCKED`, and `FOUND` / definitive `NOT_FOUND` remain limited to stronger exact evidence.
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Sherlock license notice.
 
