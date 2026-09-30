@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { buildScanAnalytics, type ScanAnalytics } from './analytics';
+import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import type { ResultStatus, SearchResponse, SourceResult } from './shared/types';
 
@@ -248,6 +248,31 @@ export default function App() {
     }
   }
 
+  async function shareProfileSummary() {
+    if (!data) return;
+    const found = data.summary.FOUND;
+    const maybe = data.summary.POSSIBLE;
+    const unclear = data.summary.UNKNOWN + data.summary.BLOCKED;
+    const coverage = Math.round((data.results.length / Math.max(1, data.sourceCount)) * 100);
+    const summaryText = [
+      `ARIADNE · PUBLIC FOOTPRINT`,
+      `@${data.query}`,
+      `Found: ${found} · Maybe: ${maybe} · Needs review: ${unclear} · Coverage: ${coverage}%`,
+      `${data.results.length} of ${data.sourceCount} sources checked`,
+      'A username match is a public signal, not proof of account ownership.',
+    ].join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Ariadne · @${data.query}`, text: summaryText });
+        return;
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      }
+    }
+    await copy(summaryText);
+  }
+
   async function copyPartyCard() {
     const closest = partyMetrics.closestPair;
     const twins = partyMetrics.internetTwins;
@@ -360,11 +385,18 @@ export default function App() {
             </div>
           </div>
 
-          <EvidenceOverview data={data} />
+          {scanAnalytics && (
+            <ProfileSummary
+              data={data}
+              analytics={scanAnalytics}
+              complete={data.nextCursor === null && !loading}
+              onShare={shareProfileSummary}
+            />
+          )}
           {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
           <SourceAvailabilityPanel stats={sourceStats} data={data} />
 
-          <div className="filter-deck">
+          <div className="filter-deck" id="evidence-explorer">
             <div className="filter-deck-head">
               <div><span>Explore results</span><small>{visible.length} of {data.results.length} shown</small></div>
               {activeFilterCount > 0 && <button className="clear-filters" onClick={clearResultFilters}>Clear {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}</button>}
@@ -521,22 +553,128 @@ function SourceAvailabilityPanel({ stats, data }: { stats: SourceStats | null; d
     </details>
   );
 }
-function EvidenceOverview({ data }: { data: SearchResponse }) {
-  const direct = data.results.filter((result) => result.evidenceBasis === 'direct-api');
-  const heuristic = data.results.filter((result) => result.evidenceBasis === 'catalog-rule');
-  const found = direct.filter((result) => result.status === 'FOUND').length;
-  const maybe = heuristic.filter((result) => result.status === 'POSSIBLE').length;
-  const couldNotCheck = data.summary.UNKNOWN + data.summary.BLOCKED;
+function ProfileSummary({
+  data,
+  analytics,
+  complete,
+  onShare,
+}: {
+  data: SearchResponse;
+  analytics: ScanAnalytics;
+  complete: boolean;
+  onShare: () => void;
+}) {
+  const found = data.results.filter((result) => result.status === 'FOUND');
+  const possible = data.results.filter((result) => result.status === 'POSSIBLE');
+  const unclear = data.summary.UNKNOWN + data.summary.BLOCKED;
+  const coverage = Math.round((data.results.length / Math.max(1, data.sourceCount)) * 100);
+  const categorySignals = analytics.categories.filter((item) => item.found + item.possible > 0).slice(0, 6);
+  const categoryMax = Math.max(1, ...categorySignals.map((item) => item.found + item.possible));
+  const attempted = Math.max(1, analytics.attempted);
+  const mix = [
+    { key: 'found', label: 'Found', value: data.summary.FOUND },
+    { key: 'possible', label: 'Maybe', value: data.summary.POSSIBLE },
+    { key: 'unclear', label: 'Needs review', value: unclear },
+    { key: 'not-found', label: 'No match', value: data.summary.NOT_FOUND },
+    { key: 'skipped', label: 'Skipped', value: data.summary.SKIPPED },
+  ];
+
   return (
-    <div className="evidence-overview" aria-label="Result summary">
-      <div><span>Found</span><strong>{found}</strong><small>The site returned the exact username</small></div>
-      <div><span>Maybe</span><strong>{maybe}</strong><small>The profile looks real; open it to check</small></div>
-      <div><span>Couldn’t check</span><strong>{couldNotCheck}</strong><small>The site blocked us or gave an unclear answer</small></div>
-      <div><span>No profile found</span><strong>{data.summary.NOT_FOUND}</strong><small>Only exact site checks can show this</small></div>
-    </div>
+    <section className="profile-summary" aria-label="Public footprint summary">
+      <div className="profile-summary-top">
+        <div className="profile-identity">
+          <div className="profile-monogram" aria-hidden="true">{data.query.slice(0, 1).toUpperCase()}</div>
+          <div>
+            <div className="eyebrow">PUBLIC FOOTPRINT</div>
+            <h3>@{data.query}</h3>
+            <p>Scanned {new Date(data.checkedAt).toLocaleString()} · {data.sourceCount} configured sources</p>
+          </div>
+        </div>
+        <div className="profile-summary-actions">
+          <span className={complete ? 'scan-state complete' : 'scan-state'}>{complete ? 'Scan complete' : 'Updating'}</span>
+          <button className="secondary" type="button" onClick={onShare}>Share snapshot</button>
+        </div>
+      </div>
+
+      <div className="profile-metrics" aria-label="Scan summary">
+        <div className="profile-metric found"><span>Found</span><strong>{data.summary.FOUND}</strong><small>public profile signals</small></div>
+        <div className="profile-metric possible"><span>Maybe</span><strong>{data.summary.POSSIBLE}</strong><small>profiles to review</small></div>
+        <div className="profile-metric review"><span>Needs review</span><strong>{unclear}</strong><small>blocked or unclear checks</small></div>
+        <div className="profile-metric coverage"><span>Coverage</span><strong>{coverage}%</strong><small>{data.results.length}/{data.sourceCount} returned</small></div>
+      </div>
+
+      <div className="profile-mix">
+        <div className="profile-section-head">
+          <div><div className="eyebrow">SCAN MIX</div><h4>What came back</h4></div>
+          <span>{data.results.length} results</span>
+        </div>
+        <div className="mix-track" role="img" aria-label={mix.map((item) => `${item.label}: ${item.value}`).join(', ')}
+          >
+          {mix.filter((item) => item.value > 0).map((item) => (
+            <span key={item.key} className={`mix-${item.key}`} style={{ width: `${(item.value / attempted) * 100}%` }} />
+          ))}
+        </div>
+        <div className="mix-legend">
+          {mix.map((item) => <span key={item.key}><i className={`legend-dot mix-${item.key}`} />{item.label} <strong>{item.value}</strong></span>)}
+        </div>
+      </div>
+
+      <div className="profile-summary-grid">
+        <div className="profile-categories">
+          <div className="profile-section-head">
+            <div><div className="eyebrow">WHERE THE SIGNALS ARE</div><h4>Categories</h4></div>
+            <span>{categorySignals.length ? `${categorySignals.length} with matches` : 'No positive signals'}</span>
+          </div>
+          {categorySignals.length ? (
+            <div className="category-bars">
+              {categorySignals.map((item) => {
+                const total = item.found + item.possible;
+                return (
+                  <div className="category-bar-row" key={item.category}>
+                    <div className="category-bar-label"><strong>{item.label}</strong><span>{item.found} found · {item.possible} maybe</span></div>
+                    <div className="category-bar-track"><span style={{ width: `${(total / categoryMax) * 100}%` }} /><i style={{ width: `${(item.found / Math.max(1, total)) * 100}%` }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="profile-empty">No Found or Maybe signals were returned in the categories checked.</p>
+          )}
+        </div>
+
+        <div className="profile-hits">
+          <div className="profile-section-head">
+            <div><div className="eyebrow">QUICK REVIEW</div><h4>Profiles worth opening</h4></div>
+            <a href="#evidence-explorer">See all</a>
+          </div>
+
+          <div className="profile-hit-list">
+            {found.slice(0, 4).map((result) => (
+              <a className="profile-hit" key={result.sourceId} href={result.profileUrl} target="_blank" rel="noreferrer">
+                <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
+                <span><strong>{result.sourceName}</strong><small>{CATEGORY_LABELS[result.category]} · Found</small></span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            ))}
+            {possible.slice(0, Math.max(0, 4 - Math.min(found.length, 4))).map((result) => (
+              <a className="profile-hit possible-hit" key={result.sourceId} href={result.profileUrl} target="_blank" rel="noreferrer">
+                <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
+                <span><strong>{result.sourceName}</strong><small>{CATEGORY_LABELS[result.category]} · Maybe</small></span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            ))}
+            {!found.length && !possible.length && <p className="profile-empty">No positive profile signals in this scan.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="profile-summary-foot">
+        <p>Ariadne reports public profile signals only. A matching username does not prove that the same person owns every account.</p>
+        <a href="#evidence-explorer">Explore all {data.results.length} results <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
   );
 }
-
 function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; complete: boolean }) {
   const funnelMax = Math.max(1, analytics.funnel[0]?.value ?? 1);
   const signalCategories = analytics.categories.filter((item) => item.found + item.possible > 0);
