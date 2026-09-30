@@ -6,6 +6,7 @@ export type PopularSourceCredentials = {
   TWITCH_CLIENT_SECRET?: string;
   YOUTUBE_API_KEY?: string;
   STEAM_WEB_API_KEY?: string;
+  LASTFM_API_KEY?: string;
 };
 
 const JSON_HEADERS = {
@@ -184,6 +185,62 @@ function youtubeSource(credentials: PopularSourceCredentials): SourceDefinition 
   };
 }
 
+function lastFmSource(credentials: PopularSourceCredentials): SourceDefinition {
+  return {
+    id: 'lastfm',
+    name: 'Last.fm',
+    category: 'media',
+    nsfw: false,
+    profileUrl: (u) => `https://www.last.fm/user/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const params = new URLSearchParams({
+        method: 'user.getInfo',
+        user: u,
+        api_key: credentials.LASTFM_API_KEY!,
+        format: 'json',
+      });
+      const response = await fetch(`https://ws.audioscrobbler.com/2.0/?${params.toString()}`, {
+        headers: JSON_HEADERS,
+        signal,
+      });
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      if (response.status === 401 || response.status === 403) {
+        return { httpStatus: response.status, verdict: blocked('Last.fm', 'The Last.fm API key was rejected.') };
+      }
+      if (!response.ok) {
+        return { httpStatus: response.status, verdict: unknown('Last.fm', response.status, 'Unexpected Last.fm API response.') };
+      }
+
+      const data = await response.json() as {
+        user?: { name?: string };
+        error?: number;
+        message?: string;
+      };
+
+      if (data.error !== undefined) {
+        const message = data.message ?? `Last.fm API error ${data.error}.`;
+        if (data.error === 10 || data.error === 26 || data.error === 29) {
+          return { httpStatus: response.status, verdict: blocked('Last.fm', message) };
+        }
+        if (data.error === 6 && /user\s+not\s+found/i.test(message)) {
+          return { httpStatus: response.status, verdict: exactMissing('Last.fm', response.status, message) };
+        }
+        return { httpStatus: response.status, verdict: unknown('Last.fm', response.status, message) };
+      }
+
+      const actual = data.user?.name;
+      if (!actual) {
+        return { httpStatus: response.status, verdict: unknown('Last.fm', response.status, 'The API response did not contain a username.') };
+      }
+      if (actual.toLocaleLowerCase() !== u.toLocaleLowerCase()) {
+        return { httpStatus: response.status, verdict: unknown('Last.fm', response.status, `Last.fm returned a different username: ${actual}.`) };
+      }
+      return { httpStatus: response.status, verdict: exactFound('Last.fm', response.status, `Last.fm returned username "${actual}".`) };
+    },
+  };
+}
+
 function steamSource(credentials: PopularSourceCredentials): SourceDefinition {
   return {
     id: 'steam-community',
@@ -233,6 +290,7 @@ export function buildPopularCredentialSources(credentials: PopularSourceCredenti
   if (credentials.TWITCH_CLIENT_ID && credentials.TWITCH_CLIENT_SECRET) sources.push(twitchSource(credentials));
   if (credentials.YOUTUBE_API_KEY) sources.push(youtubeSource(credentials));
   if (credentials.STEAM_WEB_API_KEY) sources.push(steamSource(credentials));
+  if (credentials.LASTFM_API_KEY) sources.push(lastFmSource(credentials));
   return sources;
 }
 
