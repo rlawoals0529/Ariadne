@@ -134,8 +134,6 @@ export default function App() {
     setCategoryFilter('ALL');
     setSensitivityFilter('ALL');
     setEvidenceFilter('ALL');
-    setCategoryFilter('ALL');
-    setResultSearch('');
     setResultSearch('');
   }
 
@@ -633,7 +631,7 @@ function ProfileSummary({
                 return (
                   <div className="category-bar-row" key={item.category}>
                     <div className="category-bar-label"><strong>{item.label}</strong><span>{item.found} found · {item.possible} maybe</span></div>
-                    <div className="category-bar-track"><span style={{ width: `${(total / categoryMax) * 100}%` }} /><i style={{ width: `${(item.found / Math.max(1, total)) * 100}%` }} /></div>
+                    <div className="category-bar-track" aria-hidden="true"><span style={{ width: `${(total / categoryMax) * 100}%` }} /><i style={{ width: `${(item.found / categoryMax) * 100}%` }} /></div>
                   </div>
                 );
               })}
