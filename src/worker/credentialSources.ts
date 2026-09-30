@@ -11,7 +11,7 @@ export type PopularSourceCredentials = {
 
 const JSON_HEADERS = {
   Accept: 'application/json',
-  'User-Agent': 'Ariadne/0.9 (+https://github.com/rlawoals0529/Ariadne)',
+  'User-Agent': 'Ariadne/1.0 (+https://github.com/rlawoals0529/Ariadne)',
 };
 
 let twitchTokenCache: { clientId: string; token: string; expiresAt: number } | null = null;
