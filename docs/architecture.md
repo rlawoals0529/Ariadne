@@ -36,7 +36,7 @@ An exact source needs a stable public verification signal. Prefer first-party pu
 
 Exact sources may return `FOUND` only when the requested identifier itself is present in source-specific evidence. They may return `NOT_FOUND` only when their stronger endpoint explicitly indicates absence. Identifier mismatches stay `UNKNOWN`.
 
-Current exact adapters are:
+Current always-on exact adapters are:
 
 - GitHub
 - GitLab
@@ -55,6 +55,18 @@ Current exact adapters are:
 - Scratch
 - Roblox
 - Mastodon.social (WebFinger)
+
+### Credential-backed popular-site adapters
+
+Twitch, YouTube, and Steam Community have stronger official lookup APIs, but those APIs require application credentials. Ariadne constructs these adapters only when the corresponding Worker secrets are present.
+
+- Twitch requires `TWITCH_CLIENT_ID` + `TWITCH_CLIENT_SECRET`. The Worker obtains an app access token server-side and uses Helix `Get Users?login=`.
+- YouTube requires `YOUTUBE_API_KEY` and uses `channels.list` with the `forHandle` filter.
+- Steam Community requires `STEAM_WEB_API_KEY` and uses `ResolveVanityURL`.
+
+When a credential-backed adapter is active, its weaker catalog duplicate is disabled for that request. When the credentials are absent, the broad fallback remains available as **Maybe / Couldn’t tell** evidence rather than disappearing from coverage.
+
+Secrets are server-side Worker bindings. They are never returned by `/api/sources` or placed in the React bundle.
 
 ### Wide catalog
 
