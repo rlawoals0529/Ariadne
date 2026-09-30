@@ -87,11 +87,15 @@ await mobile.locator('#evidence-explorer').scrollIntoViewIfNeeded();
 await mobile.screenshot({ path: 'mobile-evidence.jpg', type: 'jpeg', quality: 58, fullPage: true });
 await mobile.locator('.category-menu > summary').click();
 await mobile.screenshot({ path: 'mobile-category.jpg', type: 'jpeg', quality: 58, fullPage: false });
+await mobile.locator('.category-menu > summary').click();
+await mobile.locator('.result-card').first().locator('.result-toggle').click();
+await mobile.locator('.result-card').first().scrollIntoViewIfNeeded();
+await mobile.screenshot({ path: 'mobile-expanded-result.jpg', type: 'jpeg', quality: 58, fullPage: false });
 
 const longText = '@' + 'averylongusername'.repeat(4);
 await mobile.locator('.profile-identity h3').evaluate((el, text) => { el.textContent = text; }, longText);
-await mobile.locator('.profile-summary').scrollIntoViewIfNeeded();
-await mobile.screenshot({ path: 'mobile-long-username.jpg', type: 'jpeg', quality: 58, fullPage: false });
+await mobile.locator('.profile-summary-top').scrollIntoViewIfNeeded();
+await mobile.locator('.profile-summary-top').screenshot({ path: 'mobile-long-username.jpg', type: 'jpeg', quality: 62 });
 
 for (const selector of ['.profile-summary', '.scan-support-stack', '#evidence-explorer', '.results-list']) {
   const box = await mobile.locator(selector).boundingBox();
@@ -100,7 +104,7 @@ for (const selector of ['.profile-summary', '.scan-support-stack', '#evidence-ex
 const docWidth = await mobile.evaluate(() => document.documentElement.scrollWidth);
 if (docWidth > 390) errors.push('document horizontal overflow: ' + docWidth);
 
-for (const path of ['desktop-result.jpg','desktop-expanded.jpg','mobile-evidence.jpg','mobile-category.jpg','mobile-long-username.jpg']) {
+for (const path of ['desktop-result.jpg','desktop-expanded.jpg','mobile-evidence.jpg','mobile-category.jpg','mobile-expanded-result.jpg','mobile-long-username.jpg']) {
   const b64 = fs.readFileSync(path).toString('base64');
   console.log('SCREENSHOT_BEGIN ' + path);
   console.log(b64);
