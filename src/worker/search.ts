@@ -215,10 +215,14 @@ export function sourceAvailability(credentials: PopularSourceCredentials = {}): 
     {
       id: 'lastfm',
       name: 'Last.fm',
-      state: has('LASTFM_API_KEY') ? 'exact' : 'unavailable',
-      label: has('LASTFM_API_KEY') ? 'Exact check ready' : 'Not configured',
+      state: has('LASTFM_API_KEY') && credentials.LASTFM_PUBLIC_APPROVED === 'true' ? 'exact' : 'unavailable',
+      label: has('LASTFM_API_KEY')
+        ? credentials.LASTFM_PUBLIC_APPROVED === 'true' ? 'Exact check ready' : 'Approval required'
+        : 'Not configured',
       detail: has('LASTFM_API_KEY')
-        ? 'Ariadne can use Last.fm’s official user lookup.'
+        ? credentials.LASTFM_PUBLIC_APPROVED === 'true'
+          ? 'Ariadne can use Last.fm’s official user lookup.'
+          : 'The API key is configured, but Ariadne will not use Last.fm publicly until its required written approval is recorded.'
         : 'Last.fm is not checked until its API key is configured.',
     },
   ];
