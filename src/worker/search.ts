@@ -27,6 +27,24 @@ function evidenceBasis(source: SourceDefinition): EvidenceBasis {
   return source.id.startsWith('catalog-') ? 'catalog-rule' : 'direct-api';
 }
 
+function makeCatalogNegativeConservative(result: SourceResult): SourceResult {
+  if (result.evidenceBasis !== 'catalog-rule' || result.status !== 'NOT_FOUND') return result;
+
+  return {
+    ...result,
+    status: 'UNKNOWN',
+    confidence: 'none',
+    reason: 'This site gave a signal that can mean a profile is missing, but Ariadne cannot safely rule the account out from that signal alone.',
+    signals: [
+      ...result.signals,
+      {
+        kind: 'provenance',
+        detail: 'Ariadne downgraded this broad website rule from Not found to Couldn’t tell to avoid false negatives.',
+      },
+    ],
+  };
+}
+
 async function checkSource(source: SourceDefinition, username: string): Promise<SourceResult> {
   const checkedAt = new Date().toISOString();
   const started = Date.now();
@@ -43,7 +61,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       evidenceBasis: basis,
       status: 'SKIPPED',
       confidence: 'none',
-      reason: 'This username does not satisfy the source’s documented identifier format.',
+      reason: 'This username does not fit the format this site allows.',
       httpStatus: null,
       checkedAt,
       durationMs: Date.now() - started,
@@ -55,7 +73,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
   const timeout = setTimeout(() => controller.abort('source timeout'), TIMEOUT_MS);
   try {
     const { httpStatus, verdict } = await source.probe(username, controller.signal);
-    return {
+    return makeCatalogNegativeConservative({
       sourceId: source.id,
       sourceName: source.name,
       profileUrl,
@@ -66,7 +84,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       checkedAt,
       durationMs: Date.now() - started,
       ...verdict,
-    };
+    });
   } catch (error) {
     const timedOut = controller.signal.aborted;
     return {
@@ -78,7 +96,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       evidenceBasis: basis,
       status: 'UNKNOWN',
       confidence: 'none',
-      reason: timedOut ? 'The source did not answer before the verification timeout.' : 'The source request failed before Ariadne could verify the account.',
+      reason: timedOut ? 'This site took too long to answer, so Ariadne could not check it.' : 'Ariadne could not get a reliable answer from this site.',
       httpStatus: null,
       checkedAt,
       durationMs: Date.now() - started,
