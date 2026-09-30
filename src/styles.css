@@ -593,3 +593,54 @@ body {
   .result-main { grid-template-columns: minmax(0, 1fr) auto; }
   .result-open { margin-right: 0; padding: 7px 5px; }
 }
+
+
+/* Quieter support disclosures between report and evidence */
+.scan-support-stack .source-availability {
+  margin: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.scan-support-stack .source-availability > summary {
+  min-height: 60px;
+  padding: 9px 0;
+}
+.scan-support-stack .source-availability > summary strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+.scan-support-stack .availability-summary {
+  font-size: 9px;
+}
+.scan-support-stack .availability-body {
+  padding: 15px 0 17px;
+}
+.scan-support-stack .availability-intro {
+  margin-bottom: 13px;
+}
+.scan-support-stack .availability-intro p {
+  font-size: 10px;
+}
+.scan-support-stack .availability-provider {
+  padding: 11px;
+}
+.scan-support-stack .availability-provider p,
+.scan-support-stack .availability-issue small {
+  font-size: 8px;
+}
+.scan-support-stack + .filter-deck {
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .scan-support-stack .source-availability > summary {
+    min-height: 56px;
+  }
+  .scan-support-stack .source-availability > summary strong {
+    font-size: 15px;
+  }
+  .scan-support-stack + .filter-deck {
+    margin-top: 10px;
+  }
+}
