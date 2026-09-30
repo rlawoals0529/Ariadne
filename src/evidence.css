@@ -535,15 +535,23 @@
   .filter-menu > summary::after {
     grid-area: icon;
   }
+  .filter-menus {
+    position: relative;
+  }
+  .filter-menu {
+    position: static;
+  }
   .filter-menu-body,
   .category-menu .filter-menu-body {
-    position: fixed;
+    position: absolute;
     z-index: 30;
-    inset: auto 12px 12px;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
     width: auto;
     max-height: min(52vh, 440px);
     border-color: var(--ink);
-    box-shadow: 0 -10px 32px rgba(28, 26, 24, .12);
+    box-shadow: 0 10px 30px rgba(28, 26, 24, .12);
   }
   .status-filter-group .filter-label {
     padding-top: 8px;

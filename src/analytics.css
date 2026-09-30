@@ -157,7 +157,7 @@
 .metric-notes strong { color: var(--ink); }
 .filter-deck {
   position: sticky;
-  top: 0;
+  top: 72px;
   z-index: 5;
   margin-top: 8px;
   background: rgba(245, 240, 231, .96);
