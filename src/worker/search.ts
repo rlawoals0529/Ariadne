@@ -1,5 +1,6 @@
 import type { EvidenceBasis, ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
 import { exactSources } from './exactSources.js';
+import { buildPopularCredentialSources, type PopularSourceCredentials } from './credentialSources.js';
 import { sources, type SourceDefinition } from './sources.js';
 
 const TIMEOUT_MS = 4500;
@@ -28,12 +29,24 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-x-twitter',
 ]);
 
-function allRegisteredSources(): SourceDefinition[] {
-  return [...sources, ...exactSources];
+const CREDENTIAL_REPLACEMENTS: Record<string, string> = {
+  twitch: 'catalog-twitch',
+  youtube: 'catalog-youtube',
+  'steam-community': 'catalog-steam-community',
+};
+
+function allRegisteredSources(credentials: PopularSourceCredentials = {}): SourceDefinition[] {
+  return [...sources, ...exactSources, ...buildPopularCredentialSources(credentials)];
 }
 
-function eligibleSources(): SourceDefinition[] {
-  return allRegisteredSources().filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
+function eligibleSources(credentials: PopularSourceCredentials = {}): SourceDefinition[] {
+  const credentialSources = buildPopularCredentialSources(credentials);
+  const disabled = new Set(DISABLED_WIDE_SOURCE_IDS);
+  for (const source of credentialSources) {
+    const duplicate = CREDENTIAL_REPLACEMENTS[source.id];
+    if (duplicate) disabled.add(duplicate);
+  }
+  return [...sources, ...exactSources, ...credentialSources].filter((source) => !disabled.has(source.id));
 }
 
 function evidenceBasis(source: SourceDefinition): EvidenceBasis {
@@ -152,13 +165,13 @@ export function validateCursor(input: unknown): number {
   return input;
 }
 
-export function selectSources(includeNsfw: boolean): SourceDefinition[] {
-  const eligible = eligibleSources();
+export function selectSources(includeNsfw: boolean, credentials: PopularSourceCredentials = {}): SourceDefinition[] {
+  const eligible = eligibleSources(credentials);
   return includeNsfw ? eligible : eligible.filter((source) => !source.nsfw);
 }
 
-export function searchableSourceStats() {
-  const all = selectSources(true);
+export function searchableSourceStats(credentials: PopularSourceCredentials = {}) {
+  const all = selectSources(true, credentials);
   const nsfw = all.filter((source) => source.nsfw).length;
   const direct = all.filter((source) => evidenceBasis(source) === 'direct-api').length;
   return {
@@ -167,7 +180,8 @@ export function searchableSourceStats() {
     nsfw,
     direct,
     heuristic: all.length - direct,
-    disabled: allRegisteredSources().length - all.length,
+    disabled: allRegisteredSources(credentials).length - all.length,
+    credentialExact: buildPopularCredentialSources(credentials).map((source) => source.name),
   };
 }
 
@@ -175,8 +189,12 @@ function emptySummary(): Record<ResultStatus, number> {
   return { FOUND: 0, POSSIBLE: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
 }
 
-export async function searchUsername(username: string, options: { includeNsfw: boolean; cursor: number }): Promise<SearchResponse> {
-  const selected = selectSources(options.includeNsfw);
+export async function searchUsername(
+  username: string,
+  options: { includeNsfw: boolean; cursor: number },
+  credentials: PopularSourceCredentials = {},
+): Promise<SearchResponse> {
+  const selected = selectSources(options.includeNsfw, credentials);
   const cursor = Math.min(options.cursor, selected.length);
   const batch = selected.slice(cursor, cursor + SEARCH_BATCH_SIZE);
   const results = await checkBatch(batch, username);
