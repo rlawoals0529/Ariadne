@@ -1,4 +1,4 @@
-export type ResultStatus = 'FOUND' | 'NOT_FOUND' | 'UNKNOWN' | 'BLOCKED' | 'SKIPPED';
+export type ResultStatus = 'FOUND' | 'POSSIBLE' | 'NOT_FOUND' | 'UNKNOWN' | 'BLOCKED' | 'SKIPPED';
 export type Confidence = 'high' | 'medium' | 'low' | 'none';
 export type SourceCategory = 'social' | 'developer' | 'gaming' | 'creative' | 'media' | 'community' | 'adult' | 'other';
 
