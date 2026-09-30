@@ -34,6 +34,7 @@ export function apiIdentityVerdict(options: {
   expected: string;
   actual?: string | null;
   missing?: boolean;
+  caseSensitive?: boolean;
 }): Verdict {
   const infrastructure = classifyHttpFailure(options.httpStatus);
   if (infrastructure) return infrastructure;
@@ -51,7 +52,11 @@ export function apiIdentityVerdict(options: {
   }
 
   if (options.httpStatus >= 200 && options.httpStatus < 300 && options.actual) {
-    if (options.actual.toLocaleLowerCase() === options.expected.toLocaleLowerCase()) {
+    const matches = options.caseSensitive
+      ? options.actual === options.expected
+      : options.actual.toLocaleLowerCase() === options.expected.toLocaleLowerCase();
+
+    if (matches) {
       return {
         status: 'FOUND',
         confidence: 'high',
