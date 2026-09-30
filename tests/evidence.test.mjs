@@ -35,16 +35,68 @@ test('upstream server errors stay unknown', () => {
   assert.equal(verdict?.status, 'UNKNOWN');
 });
 
-test('wide catalog is substantial and NSFW stays opt-in', () => {
+test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in', () => {
   const searchable = searchableSourceStats();
+  const selected = selectSources(true);
   assert.ok(searchable.total >= 120, `expected at least 120 searchable sources, got ${searchable.total}`);
   assert.ok(searchable.standard >= 100, `expected at least 100 standard sources, got ${searchable.standard}`);
   assert.ok(sourceStats.nsfw >= 15, `expected at least 15 NSFW sources, got ${sourceStats.nsfw}`);
-  assert.ok(searchable.direct >= 6, `expected at least 6 direct adapters, got ${searchable.direct}`);
+  assert.ok(searchable.direct >= 9, `expected at least 9 direct adapters, got ${searchable.direct}`);
   assert.equal(selectSources(false).some((source) => source.nsfw), false);
-  assert.equal(selectSources(true).filter((source) => source.nsfw).length, searchable.nsfw);
-  assert.ok(sources.some((source) => source.id === 'anilist'), 'AniList direct adapter should exist');
-  assert.ok(sources.some((source) => source.id === 'catalog-pinterest'), 'Pinterest catalog source should exist');
+  assert.equal(selected.filter((source) => source.nsfw).length, searchable.nsfw);
+  for (const sourceId of ['anilist', 'bluesky', 'chess-com', 'codeforces']) {
+    assert.ok(sources.some((source) => source.id === sourceId), `${sourceId} direct adapter should exist`);
+  }
+  for (const duplicateId of ['catalog-bluesky', 'catalog-chess-com', 'catalog-codeforces']) {
+    assert.equal(selected.some((source) => source.id === duplicateId), false, `${duplicateId} should not be searched when an exact adapter exists`);
+  }
+});
+
+test('exact adapters only confirm matching usernames', async (t) => {
+  const originalFetch = globalThis.fetch;
+  try {
+    await t.test('Bluesky confirms the returned handle', async () => {
+      const source = sources.find((item) => item.id === 'bluesky');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ handle: 'alice.bsky.social' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Chess.com confirms the returned username', async () => {
+      const source = sources.find((item) => item.id === 'chess-com');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'Alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Chess.com 404 is an explicit miss', async () => {
+      const source = sources.find((item) => item.id === 'chess-com');
+      assert.ok(source);
+      globalThis.fetch = async () => new Response('missing', { status: 404 });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Codeforces confirms the returned handle', async () => {
+      const source = sources.find((item) => item.id === 'codeforces');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ status: 'OK', result: [{ handle: 'Alice' }] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Codeforces missing user stays a miss, not a match', async () => {
+      const source = sources.find((item) => item.id === 'codeforces');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ status: 'FAILED', comment: 'handles: User with handle alice not found' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('Sherlock-derived rules never become confirmed solely from a 200', async (t) => {
