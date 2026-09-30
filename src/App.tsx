@@ -423,9 +423,9 @@ export default function App() {
                   </summary>
                   <div className="filter-menu-body">
                     <div className="filters category-filters" aria-label="Filter results by category">
-                      <button className={categoryFilter === 'ALL' ? 'active' : ''} onClick={() => setCategoryFilter('ALL')}>All <small>{data.results.length}</small></button>
+                      <button className={categoryFilter === 'ALL' ? 'active' : ''} onClick={(event) => { setCategoryFilter('ALL'); event.currentTarget.closest('details')?.removeAttribute('open'); }}>All <small>{data.results.length}</small></button>
                       {categoryOptions.map(([category, count]) => (
-                        <button key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>
+                        <button key={category} className={categoryFilter === category ? 'active' : ''} onClick={(event) => { setCategoryFilter(category); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
                           {category} <small>{count}</small>
                         </button>
                       ))}
