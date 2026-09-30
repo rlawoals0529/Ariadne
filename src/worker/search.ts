@@ -1,4 +1,4 @@
-import type { ResultStatus, SearchResponse, SourceResult, VerificationBasis } from '../shared/types.js';
+import type { EvidenceBasis, ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
 import { sources, type SourceDefinition } from './sources.js';
 
 const TIMEOUT_MS = 4500;
@@ -22,7 +22,7 @@ function eligibleSources(): SourceDefinition[] {
   return sources.filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
 }
 
-function evidenceBasis(source: SourceDefinition): VerificationBasis {
+function evidenceBasis(source: SourceDefinition): EvidenceBasis {
   return source.id.startsWith('catalog-') ? 'catalog-rule' : 'direct-api';
 }
 
