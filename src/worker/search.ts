@@ -170,6 +170,60 @@ export function selectSources(includeNsfw: boolean, credentials: PopularSourceCr
   return includeNsfw ? eligible : eligible.filter((source) => !source.nsfw);
 }
 
+export type SourceAvailabilityState = 'exact' | 'fallback' | 'unavailable';
+
+export type SourceAvailability = {
+  id: string;
+  name: string;
+  state: SourceAvailabilityState;
+  label: string;
+  detail: string;
+};
+
+export function sourceAvailability(credentials: PopularSourceCredentials = {}): SourceAvailability[] {
+  const has = (name: keyof PopularSourceCredentials) => Boolean(credentials[name]);
+  const hasTwitch = has('TWITCH_CLIENT_ID') && has('TWITCH_CLIENT_SECRET');
+
+  return [
+    {
+      id: 'twitch',
+      name: 'Twitch',
+      state: hasTwitch ? 'exact' : 'fallback',
+      label: hasTwitch ? 'Exact check ready' : 'Public check available',
+      detail: hasTwitch
+        ? 'Ariadne can use Twitch’s official user lookup.'
+        : 'The public-page check remains available, but Ariadne cannot verify the username through Twitch’s API.',
+    },
+    {
+      id: 'youtube',
+      name: 'YouTube',
+      state: has('YOUTUBE_API_KEY') ? 'exact' : 'fallback',
+      label: has('YOUTUBE_API_KEY') ? 'Exact check ready' : 'Public check available',
+      detail: has('YOUTUBE_API_KEY')
+        ? 'Ariadne can use YouTube’s official channel handle lookup.'
+        : 'The public-page check remains available, but the official API lookup is not configured.',
+    },
+    {
+      id: 'steam-community',
+      name: 'Steam Community',
+      state: has('STEAM_WEB_API_KEY') ? 'exact' : 'fallback',
+      label: has('STEAM_WEB_API_KEY') ? 'Exact check ready' : 'Public check available',
+      detail: has('STEAM_WEB_API_KEY')
+        ? 'Ariadne can use Steam’s vanity URL resolver.'
+        : 'The public-page check remains available, but the stronger Steam lookup is not configured.',
+    },
+    {
+      id: 'lastfm',
+      name: 'Last.fm',
+      state: has('LASTFM_API_KEY') ? 'exact' : 'unavailable',
+      label: has('LASTFM_API_KEY') ? 'Exact check ready' : 'Not configured',
+      detail: has('LASTFM_API_KEY')
+        ? 'Ariadne can use Last.fm’s official user lookup.'
+        : 'Last.fm is not checked until its API key is configured.',
+    },
+  ];
+}
+
 export function searchableSourceStats(credentials: PopularSourceCredentials = {}) {
   const all = selectSources(true, credentials);
   const nsfw = all.filter((source) => source.nsfw).length;
