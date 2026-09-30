@@ -1,6 +1,7 @@
 export type ResultStatus = 'FOUND' | 'POSSIBLE' | 'NOT_FOUND' | 'UNKNOWN' | 'BLOCKED' | 'SKIPPED';
 export type Confidence = 'high' | 'medium' | 'low' | 'none';
 export type SourceCategory = 'social' | 'developer' | 'gaming' | 'creative' | 'media' | 'community' | 'adult' | 'other';
+export type EvidenceBasis = 'direct-api' | 'catalog-rule';
 
 export interface EvidenceSignal {
   kind: 'identity' | 'status' | 'negative' | 'block' | 'error' | 'provenance';
@@ -13,6 +14,7 @@ export interface SourceResult {
   profileUrl: string;
   category: SourceCategory;
   nsfw: boolean;
+  evidenceBasis: EvidenceBasis;
   status: ResultStatus;
   confidence: Confidence;
   reason: string;
