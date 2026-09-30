@@ -70,7 +70,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === 'GET' && url.pathname === '/api/health') {
-        return json({ ok: true, service: 'ariadne', version: '0.9.0', sources: publicSourceStats(env) });
+        return json({ ok: true, service: 'ariadne', version: '1.0.0', sources: publicSourceStats(env) });
       }
       if (request.method === 'GET' && url.pathname === '/api/sources') {
         return json(publicSourceStats(env));
