@@ -1,0 +1,75 @@
+name: Deploy Ariadne
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ariadne-production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Validate before deployment
+        run: npm run check
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Detect Cloudflare deployment credentials
+        id: cloudflare
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -n "$CLOUDFLARE_API_TOKEN" && -n "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Ariadne Workers deployment skipped"
+              echo "Cloudflare credentials are not configured for this repository."
+              echo "Add \`CLOUDFLARE_API_TOKEN\` and \`CLOUDFLARE_ACCOUNT_ID\` as repository secrets, then re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Deploy to Cloudflare Workers
+        id: deploy
+        if: steps.cloudflare.outputs.configured == 'true'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          npx wrangler deploy 2>&1 | tee /tmp/ariadne-wrangler-deploy.log
+          DEPLOY_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' /tmp/ariadne-wrangler-deploy.log | tail -n 1 || true)"
+          if [[ -z "$DEPLOY_URL" ]]; then
+            echo "Wrangler completed without a detectable workers.dev URL." >&2
+            exit 1
+          fi
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Ariadne live deployment"
+            echo "- $DEPLOY_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify deployed release
+        if: steps.cloudflare.outputs.configured == 'true'
+        run: node scripts/verify-deployed-health.mjs "${{ steps.deploy.outputs.url }}"
