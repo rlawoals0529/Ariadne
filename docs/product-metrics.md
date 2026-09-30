@@ -73,3 +73,17 @@ Those metrics would imply more certainty than the evidence supports.
 ## Future product telemetry
 
 If Ariadne ever adds opt-in product analytics, the minimum useful event set would be aggregate interaction events such as scan completion, filter use, export use, and source-error classes. Usernames and result URLs should not be analytics properties. Any persistent telemetry requires a separate privacy review and updated product disclosure before implementation.
+
+## Source availability
+
+The product distinguishes **evidence state** from **source availability**.
+
+A source is considered usable for a scan when it returns Found, No match, or Maybe. Couldn’t tell, Blocked, and Skipped are surfaced separately so a source problem is never presented as an account absence.
+
+The public `/api/sources` endpoint also exposes high-level provider configuration state for the four credential-backed integrations:
+
+- **Exact check ready** — the server has the required credential and can use the provider's stronger lookup.
+- **Public check available** — the stronger credentialed lookup is not configured, but Ariadne can still use its broad public-page check.
+- **Not configured** — no supported public fallback is being claimed for that provider.
+
+Only configuration state and explanatory text are returned. Secret values are never returned.
