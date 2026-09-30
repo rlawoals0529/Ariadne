@@ -128,6 +128,7 @@ export default function App() {
   );
 
   const activeFilterCount = [filter !== 'ALL', categoryFilter !== 'ALL', sensitivityFilter !== 'ALL', evidenceFilter !== 'ALL', Boolean(resultSearch.trim())].filter(Boolean).length;
+  const advancedFilterCount = [sensitivityFilter !== 'ALL', evidenceFilter !== 'ALL'].filter(Boolean).length;
 
   function clearResultFilters() {
     setFilter('ALL');
@@ -407,15 +408,66 @@ export default function App() {
               {activeFilterCount > 0 && <button className="clear-filters" onClick={clearResultFilters}>Clear {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}</button>}
             </div>
 
-            <div className="result-search">
-              <span aria-hidden="true">⌕</span>
-              <input value={resultSearch} onChange={(event) => setResultSearch(event.target.value)} placeholder="Filter by platform or category" aria-label="Filter results by platform or category" />
-              {resultSearch && <button type="button" onClick={() => setResultSearch('')} aria-label="Clear result search">×</button>}
+            <div className="investigation-toolbar">
+              <div className="result-search">
+                <span aria-hidden="true">⌕</span>
+                <input value={resultSearch} onChange={(event) => setResultSearch(event.target.value)} placeholder="Search platform or category" aria-label="Filter results by platform or category" />
+                {resultSearch && <button type="button" onClick={() => setResultSearch('')} aria-label="Clear result search">×</button>}
+              </div>
+
+              <div className="filter-menus">
+                <details className="filter-menu category-menu">
+                  <summary>
+                    <span>Category</span>
+                    <strong>{categoryFilter === 'ALL' ? 'All' : categoryFilter}</strong>
+                  </summary>
+                  <div className="filter-menu-body">
+                    <div className="filters category-filters" aria-label="Filter results by category">
+                      <button className={categoryFilter === 'ALL' ? 'active' : ''} onClick={() => setCategoryFilter('ALL')}>All <small>{data.results.length}</small></button>
+                      {categoryOptions.map(([category, count]) => (
+                        <button key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>
+                          {category} <small>{count}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+
+                <details className="filter-menu filter-advanced">
+                  <summary>
+                    <span>More filters</span>
+                    <strong>{advancedFilterCount > 0 ? `${advancedFilterCount} active` : 'Evidence'}</strong>
+                  </summary>
+                  <div className="filter-menu-body filter-advanced-body">
+                    <div className="filter-group">
+                      <span className="filter-label">Evidence</span>
+                      <div className="filters evidence-filters" aria-label="Filter by how the site was checked">
+                        {(['ALL', 'DIRECT', 'HEURISTIC'] as const).map((item) => (
+                          <button key={item} className={evidenceFilter === item ? 'active' : ''} onClick={() => setEvidenceFilter(item)}>
+                            {item === 'ALL' ? 'All checks' : item === 'DIRECT' ? 'Verified by site' : 'Needs a look'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {data.includeNsfw && (
+                      <div className="filter-group">
+                        <span className="filter-label">Sensitivity</span>
+                        <div className="filters sensitivity-filters" aria-label="Filter adult sources">
+                          {(['ALL', 'SFW', 'NSFW'] as const).map((item) => (
+                            <button key={item} className={sensitivityFilter === item ? 'active' : ''} onClick={() => setSensitivityFilter(item)}>{item === 'ALL' ? 'All sites' : item === 'SFW' ? 'Regular sites' : 'Adult sites'}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </div>
             </div>
 
-            <div className="filter-group">
+            <div className="filter-group status-filter-group">
               <span className="filter-label">Status</span>
-              <div className="filters" aria-label="Filter results by status">
+              <div className="filters status-filters" aria-label="Filter results by status">
                 {(['ALL', 'FOUND', 'POSSIBLE', 'NOT_FOUND', 'UNKNOWN', 'BLOCKED', 'SKIPPED'] as const).map((item) => (
                   <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>
                     {item === 'ALL' ? 'All' : statusLabel[item]} <small>{item === 'ALL' ? data.results.length : data.summary[item]}</small>
@@ -423,47 +475,7 @@ export default function App() {
                 ))}
               </div>
             </div>
-
-            <div className="filter-group">
-              <span className="filter-label">Category</span>
-              <div className="filters category-filters" aria-label="Filter results by category">
-                <button className={categoryFilter === 'ALL' ? 'active' : ''} onClick={() => setCategoryFilter('ALL')}>All <small>{data.results.length}</small></button>
-                {categoryOptions.map(([category, count]) => (
-                  <button key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>
-                    {category} <small>{count}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <details className="filter-advanced">
-              <summary>More filters</summary>
-              <div className="filter-advanced-body">
-                <div className="filter-group">
-                  <span className="filter-label">Evidence</span>
-                  <div className="filters evidence-filters" aria-label="Filter by how the site was checked">
-                    {(['ALL', 'DIRECT', 'HEURISTIC'] as const).map((item) => (
-                      <button key={item} className={evidenceFilter === item ? 'active' : ''} onClick={() => setEvidenceFilter(item)}>
-                        {item === 'ALL' ? 'All checks' : item === 'DIRECT' ? 'Verified by site' : 'Needs a look'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {data.includeNsfw && (
-                  <div className="filter-group">
-                    <span className="filter-label">Sensitivity</span>
-                    <div className="filters sensitivity-filters" aria-label="Filter adult sources">
-                      {(['ALL', 'SFW', 'NSFW'] as const).map((item) => (
-                        <button key={item} className={sensitivityFilter === item ? 'active' : ''} onClick={() => setSensitivityFilter(item)}>{item === 'ALL' ? 'All sites' : item === 'SFW' ? 'Regular sites' : 'Adult sites'}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </details>
           </div>
-
           {visible.length > 0 ? (
             <div className="results-list">{visible.map((result) => <ResultCard key={result.sourceId} result={result} />)}</div>
           ) : (
