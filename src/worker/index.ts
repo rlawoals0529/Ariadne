@@ -10,6 +10,7 @@ type Env = {
   YOUTUBE_API_KEY?: string;
   STEAM_WEB_API_KEY?: string;
   LASTFM_API_KEY?: string;
+  LASTFM_PUBLIC_APPROVED?: string;
 };
 
 const SECURITY_HEADERS = {

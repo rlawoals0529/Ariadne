@@ -87,3 +87,8 @@ The public `/api/sources` endpoint also exposes high-level provider configuratio
 - **Not configured** — no supported public fallback is being claimed for that provider.
 
 Only configuration state and explanatory text are returned. Secret values are never returned.
+
+
+### Provider policy state
+
+For providers with additional public-use requirements, “Exact check ready” means the repository has an explicit configuration flag indicating that the required provider permission has been obtained. A configured credential alone is not treated as permission to publish API-backed results.

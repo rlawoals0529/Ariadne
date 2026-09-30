@@ -7,6 +7,7 @@ export type PopularSourceCredentials = {
   YOUTUBE_API_KEY?: string;
   STEAM_WEB_API_KEY?: string;
   LASTFM_API_KEY?: string;
+  LASTFM_PUBLIC_APPROVED?: string;
 };
 
 const JSON_HEADERS = {
