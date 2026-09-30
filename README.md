@@ -2,11 +2,11 @@
 
 **Follow the thread. Keep the evidence.**
 
-Ariadne checks where a username appears on the public web without pretending every page response is proof. Exact first-party lookups can confirm a username or say it is absent. Broader profile-page checks stay uncertain when the page cannot prove either answer.
+Give Ariadne a username and it checks public sites for that handle. It does not treat every page that loads as proof. A first-party lookup can confirm the username or explicitly say it is missing; a broad profile-page check stays uncertain when the page cannot settle the question.
 
-## What it does
+## What a scan means
 
-A scan is an evidence report, not a yes/no list.
+The result is an evidence report, not a row of green and red guesses.
 
 - **Exact checks** use public first-party APIs or standards-based lookups when the site exposes one.
 - **Broad checks** cover more of the web, but a plausible page is only **Maybe** and a weak missing signal is **Couldn’t tell**.
@@ -14,7 +14,7 @@ A scan is an evidence report, not a yes/no list.
 - **Compare Friends** checks 2–6 usernames and keeps Found separate from Maybe while calculating overlap from the current scan.
 - Searches and comparisons are not stored by Ariadne.
 
-The strictness is intentional. A false positive is noisy; a false negative can hide the exact account you were trying to find.
+That caution is the point. A false positive wastes your time, while a false negative can hide the account you were trying to find.
 
 ## Exact integrations
 
@@ -48,7 +48,7 @@ The main interface uses plain wording such as **Verified by site** and **Needs a
 
 ## Source model
 
-Ariadne combines two source tiers:
+There are two kinds of checks:
 
 - **Exact username adapters** use first-party public APIs that return an identifier Ariadne can compare with the requested username.
 - **Wide public-profile checks** cover additional social, developer, gaming, creative, media, community, and optional adult sites. Their positive results stay **Maybe**, and their negative results stay **Couldn’t tell** unless an exact adapter exists.
