@@ -3,7 +3,7 @@ import { apiIdentityVerdict, classifyHttpFailure, type Verdict } from './evidenc
 
 const HEADERS = {
   Accept: 'application/json',
-  'User-Agent': 'Ariadne/0.8 (+https://github.com/rlawoals0529/Ariadne)',
+  'User-Agent': 'Ariadne/0.9 (+https://github.com/rlawoals0529/Ariadne)',
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<Response> {
