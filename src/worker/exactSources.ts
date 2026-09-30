@@ -3,7 +3,7 @@ import { apiIdentityVerdict, classifyHttpFailure, type Verdict } from './evidenc
 
 const HEADERS = {
   Accept: 'application/json',
-  'User-Agent': 'Ariadne/0.6 (+https://github.com/rlawoals0529/Ariadne)',
+  'User-Agent': 'Ariadne/0.8 (+https://github.com/rlawoals0529/Ariadne)',
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<Response> {
@@ -106,6 +106,100 @@ export const exactSources: SourceDefinition[] = [
           missing: user === null,
         }),
       };
+    },
+  },
+  {
+    id: 'lichess',
+    name: 'Lichess',
+    category: 'gaming',
+    nsfw: false,
+    profileUrl: (u) => `https://lichess.org/@/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://lichess.org/api/user/${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Lichess');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok ? (await response.json() as { username?: string }) : null;
+      return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.username }) };
+    },
+  },
+  {
+    id: 'scratch',
+    name: 'Scratch',
+    category: 'gaming',
+    nsfw: false,
+    profileUrl: (u) => `https://scratch.mit.edu/users/${encodeURIComponent(u)}/`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://api.scratch.mit.edu/users/${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Scratch');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok ? (await response.json() as { username?: string }) : null;
+      return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.username }) };
+    },
+  },
+  {
+    id: 'roblox',
+    name: 'Roblox',
+    category: 'gaming',
+    nsfw: false,
+    profileUrl: (u) => `https://www.roblox.com/user.aspx?username=${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetch('https://users.roblox.com/v1/usernames/users', {
+        method: 'POST',
+        headers: { ...HEADERS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usernames: [u], excludeBannedUsers: false }),
+        signal,
+      });
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Roblox');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (!response.ok) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u }) };
+      }
+      const data = await response.json() as { data?: Array<{ name?: string }> };
+      const match = data.data?.find((item) => item.name?.toLocaleLowerCase() === u.toLocaleLowerCase());
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: match?.name,
+          missing: (data.data?.length ?? 0) === 0,
+        }),
+      };
+    },
+  },
+  {
+    id: 'mastodon-social',
+    name: 'Mastodon.social',
+    category: 'social',
+    nsfw: false,
+    profileUrl: (u) => `https://mastodon.social/@${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const expected = `acct:${u}@mastodon.social`;
+      const response = await fetchJson(
+        `https://mastodon.social/.well-known/webfinger?resource=${encodeURIComponent(expected)}`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Mastodon.social');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected, missing: true }) };
+      }
+      const data = response.ok ? (await response.json() as { subject?: string }) : null;
+      return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected, actual: data?.subject }) };
     },
   },
 ];

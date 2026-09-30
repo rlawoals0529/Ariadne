@@ -4,6 +4,17 @@
 
 Ariadne searches public profile pages for a username and keeps uncertainty visible. It does not treat a page loading as proof that an account exists, and it no longer treats weak page-level “missing” signals as proof that an account is absent.
 
+## v0.8 — exact checks over guesswork
+
+Accuracy is the priority for this release. Ariadne adds four stronger public identity checks and disables their weaker catalog duplicates:
+
+- **Lichess** — first-party user API returns the canonical username;
+- **Scratch** — first-party profile API returns the username;
+- **Roblox** — documented public username lookup returns the canonical account name;
+- **Mastodon.social** — standards-based WebFinger returns the account subject.
+
+That raises the exact-username tier from **13 to 17 sites** without increasing the overall number of sites scanned. These adapters may say **Found** only when the returned identity matches the requested username, and **No match** only when the first-party endpoint gives an explicit missing result. Mismatches, authentication requirements, rate limits, timeouts, and ambiguous responses stay uncertain.
+
 ## v0.7 — bigger friend mode
 
 Compare Friends supports **2–6 usernames** and checks up to two people at once. A full username scan is split into batches of up to 30 sites, reducing the number of browser-to-Worker requests while keeping outbound source checks capped at five concurrent connections per Worker request.
@@ -23,7 +34,7 @@ The Worker rate-limit budget is 40 search-batch requests per IP per minute. With
 
 ## v0.6 — more exact username checks
 
-Ariadne upgraded **Codewars, DEV Community, Hugging Face, and Keybase** from broad page checks to first-party public username lookups. Along with GitHub, GitLab, Hacker News, Codeberg, Reddit, AniList, Bluesky, Chess.com, and Codeforces, Ariadne now has **13 exact username adapters**.
+Ariadne upgraded **Codewars, DEV Community, Hugging Face, and Keybase** from broad page checks to first-party public username lookups. Along with GitHub, GitLab, Hacker News, Codeberg, Reddit, AniList, Bluesky, Chess.com, and Codeforces, Ariadne had **13 exact username adapters** before the v0.8 accuracy pass.
 
 When an exact site endpoint returns the requested username, Ariadne may mark the result **Found**. If the endpoint explicitly reports that the account is absent, it may mark the result **No match**. A different username, rate limit, block, timeout, or ambiguous response stays uncertain.
 
