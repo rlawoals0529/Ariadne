@@ -529,7 +529,7 @@ function SourceAvailabilityPanel({ stats, data }: { stats: SourceStats | null; d
       <summary>
         <span>
           <span className="eyebrow">{data ? 'HOW ARIADNE CHECKED' : 'SOURCE COVERAGE'}</span>
-          <strong>{data ? `${scanAnswered}/${data.results.length} checks returned usable evidence` : `${exactReady} exact provider checks ready`}</strong>
+          <strong>{data ? `${scanAnswered}/${data.results.length} checks returned a usable response` : `${exactReady} exact provider checks ready`}</strong>
         </span>
         <span className="availability-summary">{data ? `${scanIssues.length} need attention` : `${stats?.standard ?? '—'} public sites`}</span>
       </summary>
