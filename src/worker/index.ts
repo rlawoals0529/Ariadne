@@ -9,6 +9,7 @@ type Env = {
   TWITCH_CLIENT_SECRET?: string;
   YOUTUBE_API_KEY?: string;
   STEAM_WEB_API_KEY?: string;
+  LASTFM_API_KEY?: string;
 };
 
 const SECURITY_HEADERS = {
