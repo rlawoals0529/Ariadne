@@ -1,7 +1,9 @@
-import type { SearchResponse, SourceResult } from '../shared/types.js';
+import type { ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
 import { sources, type SourceDefinition } from './sources.js';
 
-const TIMEOUT_MS = 5500;
+const TIMEOUT_MS = 4500;
+const CONCURRENCY = 5;
+export const SEARCH_BATCH_SIZE = 20;
 
 async function checkSource(source: SourceDefinition, username: string): Promise<SourceResult> {
   const checkedAt = new Date().toISOString();
@@ -13,6 +15,8 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       sourceId: source.id,
       sourceName: source.name,
       profileUrl,
+      category: source.category,
+      nsfw: source.nsfw,
       status: 'SKIPPED',
       confidence: 'none',
       reason: 'This username does not satisfy the source’s documented identifier format.',
@@ -31,6 +35,8 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       sourceId: source.id,
       sourceName: source.name,
       profileUrl,
+      category: source.category,
+      nsfw: source.nsfw,
       httpStatus,
       checkedAt,
       durationMs: Date.now() - started,
@@ -42,6 +48,8 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       sourceId: source.id,
       sourceName: source.name,
       profileUrl,
+      category: source.category,
+      nsfw: source.nsfw,
       status: 'UNKNOWN',
       confidence: 'none',
       reason: timedOut ? 'The source did not answer before the verification timeout.' : 'The source request failed before Ariadne could verify the account.',
@@ -55,6 +63,23 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
   }
 }
 
+async function checkBatch(batch: SourceDefinition[], username: string): Promise<SourceResult[]> {
+  const output = new Array<SourceResult>(batch.length);
+  let next = 0;
+
+  async function worker() {
+    while (true) {
+      const index = next;
+      next += 1;
+      if (index >= batch.length) return;
+      output[index] = await checkSource(batch[index], username);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batch.length) }, () => worker()));
+  return output;
+}
+
 export function validateUsername(input: unknown): string {
   if (typeof input !== 'string') throw new Error('query must be a string');
   const value = input.trim();
@@ -64,16 +89,37 @@ export function validateUsername(input: unknown): string {
   return value;
 }
 
-export async function searchUsername(username: string): Promise<SearchResponse> {
-  const results = await Promise.all(sources.map((source) => checkSource(source, username)));
-  const summary: SearchResponse['summary'] = { FOUND: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
+export function validateCursor(input: unknown): number {
+  if (input === undefined) return 0;
+  if (typeof input !== 'number' || !Number.isInteger(input) || input < 0) throw new Error('cursor must be a non-negative integer');
+  return input;
+}
+
+export function selectSources(includeNsfw: boolean): SourceDefinition[] {
+  return includeNsfw ? sources : sources.filter((source) => !source.nsfw);
+}
+
+function emptySummary(): Record<ResultStatus, number> {
+  return { FOUND: 0, POSSIBLE: 0, NOT_FOUND: 0, UNKNOWN: 0, BLOCKED: 0, SKIPPED: 0 };
+}
+
+export async function searchUsername(username: string, options: { includeNsfw: boolean; cursor: number }): Promise<SearchResponse> {
+  const selected = selectSources(options.includeNsfw);
+  const cursor = Math.min(options.cursor, selected.length);
+  const batch = selected.slice(cursor, cursor + SEARCH_BATCH_SIZE);
+  const results = await checkBatch(batch, username);
+  const summary = emptySummary();
   for (const result of results) summary[result.status] += 1;
+  const next = cursor + batch.length;
 
   return {
     query: username,
     kind: 'username',
     checkedAt: new Date().toISOString(),
-    sourceCount: sources.length,
+    sourceCount: selected.length,
+    batchCount: batch.length,
+    includeNsfw: options.includeNsfw,
+    nextCursor: next < selected.length ? next : null,
     results,
     summary,
   };
