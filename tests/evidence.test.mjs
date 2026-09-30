@@ -73,20 +73,21 @@ test('popular credential-backed adapters replace weaker catalog checks when conf
     TWITCH_CLIENT_SECRET: 'client-secret',
     YOUTUBE_API_KEY: 'youtube-key',
     STEAM_WEB_API_KEY: 'steam-key',
+    LASTFM_API_KEY: 'lastfm-key',
   };
   const selected = selectSources(true, credentials);
   const stats = searchableSourceStats(credentials);
 
-  for (const sourceId of ['twitch', 'youtube', 'steam-community']) {
+  for (const sourceId of ['twitch', 'youtube', 'steam-community', 'lastfm']) {
     assert.ok(selected.some((source) => source.id === sourceId), `${sourceId} exact adapter should be enabled`);
   }
   for (const sourceId of ['catalog-twitch', 'catalog-youtube', 'catalog-steam-community']) {
     assert.equal(selected.some((source) => source.id === sourceId), false, `${sourceId} fallback should be disabled`);
   }
 
-  assert.equal(stats.total, searchableSourceStats().total, 'credential adapters should replace, not inflate, site count');
-  assert.ok(stats.direct >= 20, `expected at least 20 exact checks with popular credentials, got ${stats.direct}`);
-  assert.deepEqual(new Set(stats.credentialExact), new Set(['Twitch', 'YouTube', 'Steam Community']));
+  assert.equal(stats.total, searchableSourceStats().total + 1, 'Last.fm adds one new source while Twitch, YouTube, and Steam replace fallbacks');
+  assert.ok(stats.direct >= 21, `expected at least 21 exact checks with popular credentials, got ${stats.direct}`);
+  assert.deepEqual(new Set(stats.credentialExact), new Set(['Twitch', 'YouTube', 'Steam Community', 'Last.fm']));
 });
 
 test('popular credential-backed exact checks stay conservative', async (t) => {
@@ -95,6 +96,7 @@ test('popular credential-backed exact checks stay conservative', async (t) => {
     TWITCH_CLIENT_SECRET: 'client-secret',
     YOUTUBE_API_KEY: 'youtube-key',
     STEAM_WEB_API_KEY: 'steam-key',
+    LASTFM_API_KEY: 'lastfm-key',
   };
   const selected = selectSources(true, credentials);
   const originalFetch = globalThis.fetch;
@@ -164,6 +166,35 @@ test('popular credential-backed exact checks stay conservative', async (t) => {
       const source = selected.find((item) => item.id === 'steam-community');
       assert.ok(source);
       globalThis.fetch = async () => Response.json({ response: { success: 42, message: 'No match' } });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'UNKNOWN');
+    });
+
+    await t.test('Last.fm confirms the canonical username', async () => {
+      const source = selected.find((item) => item.id === 'lastfm');
+      assert.ok(source);
+      globalThis.fetch = async (input) => {
+        const url = String(input);
+        assert.match(url, /method=user\.getInfo/);
+        assert.match(url, /api_key=lastfm-key/);
+        return Response.json({ user: { name: 'Alice' } });
+      };
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Last.fm explicit user-not-found response is a miss', async () => {
+      const source = selected.find((item) => item.id === 'lastfm');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ error: 6, message: 'User not found' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Last.fm ambiguous API errors stay unknown', async () => {
+      const source = selected.find((item) => item.id === 'lastfm');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ error: 8, message: 'Operation failed' });
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'UNKNOWN');
     });

@@ -4,6 +4,7 @@ import App from './App';
 import './styles.css';
 import './party.css';
 import './evidence.css';
+import './analytics.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

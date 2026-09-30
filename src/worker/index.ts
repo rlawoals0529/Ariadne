@@ -9,6 +9,7 @@ type Env = {
   TWITCH_CLIENT_SECRET?: string;
   YOUTUBE_API_KEY?: string;
   STEAM_WEB_API_KEY?: string;
+  LASTFM_API_KEY?: string;
 };
 
 const SECURITY_HEADERS = {
@@ -69,7 +70,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === 'GET' && url.pathname === '/api/health') {
-        return json({ ok: true, service: 'ariadne', version: '0.9.0', sources: publicSourceStats(env) });
+        return json({ ok: true, service: 'ariadne', version: '1.0.0', sources: publicSourceStats(env) });
       }
       if (request.method === 'GET' && url.pathname === '/api/sources') {
         return json(publicSourceStats(env));

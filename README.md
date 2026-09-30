@@ -4,6 +4,26 @@
 
 Ariadne searches public profile pages for a username and keeps uncertainty visible. It does not treat a page loading as proof that an account exists, and it no longer treats weak page-level “missing” signals as proof that an account is absent.
 
+## v1.0 — evidence analytics and finished product experience
+
+Ariadne v1.0 turns each username scan into a small evidence report rather than a flat list of links.
+
+The solo report now includes:
+
+- **scan coverage** — how much of the configured source set has returned;
+- **exact resolution** — how often first-party/standards-based checks reached Found or No match;
+- **verified share** — the mix of exact Found signals versus broader Maybe signals;
+- **uncertainty** — Blocked + Couldn’t tell among attempted checks;
+- **median and P90 source response time** from the current scan;
+- an **evidence funnel** from attempted sources to verified matches;
+- a **category footprint** that keeps Found and Maybe visually separate.
+
+These metrics are calculated from the current scan in the browser. Ariadne still stores no searches and does not claim identity probabilities, privacy scores, or reputation scores. See `docs/product-metrics.md` for definitions and guardrails.
+
+v1.0 also adds an exact **Last.fm** adapter using the official `user.getInfo` method. It is enabled when `LASTFM_API_KEY` is configured. Last.fm documents that this lookup requires an API key but does not require user authentication.
+
+The frontend keeps the warm paper/thread identity while improving scanability, responsive result cards, keyboard focus, touch targets, sticky result filters, and the hierarchy between search, evidence summary, analytics, and individual sources.
+
 ## v0.9 — popular-site exact integrations
 
 The next accuracy targets are **Twitch, YouTube, and Steam Community** because they are high-value username destinations and each has an official lookup path.
@@ -22,6 +42,7 @@ Required Worker secrets:
 - `TWITCH_CLIENT_SECRET`
 - `YOUTUBE_API_KEY`
 - `STEAM_WEB_API_KEY`
+- `LASTFM_API_KEY`
 
 Do not expose these values in the browser bundle or commit them to the repository.
 
