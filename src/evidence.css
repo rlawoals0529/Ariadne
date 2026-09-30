@@ -29,19 +29,15 @@
   font-size: 10px;
   line-height: 1.4;
 }
-.evidence-filters {
-  padding-top: 0;
-}
-.evidence-filters button.active {
-  background: #3f485b;
-}
+.evidence-filters { padding-top: 0; }
+.evidence-filters button.active { background: #3f485b; }
 .basis-badge {
   font-size: 8px;
   line-height: 1;
   padding: 4px 5px;
   border: 1px solid var(--line);
   border-radius: 2px;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   text-transform: uppercase;
   font-weight: 850;
 }
@@ -62,36 +58,40 @@
   align-items: start;
   border-left: 2px solid var(--line);
   padding: 10px 12px;
-  margin: 8px 0 4px;
+  margin: 8px 0 14px;
   background: rgba(255, 253, 248, .45);
 }
-.evidence-explainer strong {
-  font-size: 11px;
-}
+.evidence-explainer strong { font-size: 11px; }
 .evidence-explainer span {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
 }
-.status-found .evidence-explainer {
-  border-left-color: var(--found);
+.status-found .evidence-explainer { border-left-color: var(--found); }
+.status-possible .evidence-explainer { border-left-color: var(--possible); }
+.technical-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }
-.status-possible .evidence-explainer {
-  border-left-color: var(--possible);
+.technical-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.technical-details[open] summary { margin-bottom: 12px; }
+.raw-reason {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 12px 0;
 }
 @media (max-width: 760px) {
-  .evidence-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .evidence-overview > div {
-    border-bottom: 1px solid var(--line);
-  }
-  .evidence-overview > div:nth-child(3) {
-    border-left: 0;
-    padding-left: 0;
-  }
-  .evidence-explainer {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
+  .evidence-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .evidence-overview > div { border-bottom: 1px solid var(--line); }
+  .evidence-overview > div:nth-child(3) { border-left: 0; padding-left: 0; }
+  .evidence-explainer { grid-template-columns: 1fr; gap: 4px; }
 }

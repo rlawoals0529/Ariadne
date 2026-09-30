@@ -5,12 +5,13 @@ const TIMEOUT_MS = 4500;
 const CONCURRENCY = 5;
 export const SEARCH_BATCH_SIZE = 20;
 
-// These inherited catalog entries currently rely on availability/existence helpers or
-// third-party mirrors rather than the first-party public profile itself. Keep them out
-// of production scans until Ariadne has a dedicated public-profile adapter for them.
+// These inherited catalog entries currently rely on weaker availability/existence helpers,
+// third-party mirrors, or have been replaced by stronger exact-username adapters.
 const DISABLED_WIDE_SOURCE_IDS = new Set([
+  'catalog-bluesky',
   'catalog-boardgamegeek',
   'catalog-chess-com',
+  'catalog-codeforces',
   'catalog-duolingo',
   'catalog-instagram',
   'catalog-pypi',
