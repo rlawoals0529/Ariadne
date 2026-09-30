@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { apiIdentityVerdict, classifyHttpFailure } from '../.test-dist/worker/evidence.js';
 import { sources, sourceStats } from '../.test-dist/worker/sources.js';
-import { searchableSourceStats, searchUsername, selectSources } from '../.test-dist/worker/search.js';
+import { searchableSourceStats, searchUsername, selectSources, sourceAvailability } from '../.test-dist/worker/search.js';
 
 test('found requires an identifier match', () => {
   const verdict = apiIdentityVerdict({ httpStatus: 200, expected: 'alice', actual: 'Alice' });
@@ -66,6 +66,33 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
   }
 });
 
+
+test('source availability explains credential fallbacks without exposing secrets', () => {
+  const missing = sourceAvailability({});
+  assert.deepEqual(
+    missing.map((item) => [item.id, item.state]),
+    [
+      ['twitch', 'fallback'],
+      ['youtube', 'fallback'],
+      ['steam-community', 'fallback'],
+      ['lastfm', 'unavailable'],
+    ],
+  );
+
+  const ready = sourceAvailability({
+    TWITCH_CLIENT_ID: 'client-id',
+    TWITCH_CLIENT_SECRET: 'client-secret',
+    YOUTUBE_API_KEY: 'youtube-key',
+    STEAM_WEB_API_KEY: 'steam-key',
+    LASTFM_API_KEY: 'lastfm-key',
+  });
+
+  assert.deepEqual(ready.map((item) => item.state), ['exact', 'exact', 'exact', 'exact']);
+  assert.equal(JSON.stringify(ready).includes('client-secret'), false);
+  assert.equal(JSON.stringify(ready).includes('youtube-key'), false);
+  assert.equal(JSON.stringify(ready).includes('steam-key'), false);
+  assert.equal(JSON.stringify(ready).includes('lastfm-key'), false);
+});
 
 test('popular credential-backed adapters replace weaker catalog checks when configured', () => {
   const credentials = {
