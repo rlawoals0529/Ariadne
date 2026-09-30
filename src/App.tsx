@@ -15,7 +15,8 @@ const statusLabel: Record<SourceResult['status'], string> = {
   SKIPPED: 'Skipped',
 };
 
-type SourceStats = { total: number; standard: number; nsfw: number; direct?: number; heuristic?: number; disabled?: number; credentialExact?: string[]; provenance?: string };
+type SourceAvailability = { id: string; name: string; state: 'exact' | 'fallback' | 'unavailable'; label: string; detail: string };
+type SourceStats = { total: number; standard: number; nsfw: number; direct?: number; heuristic?: number; disabled?: number; credentialExact?: string[]; sourceAvailability?: SourceAvailability[]; provenance?: string };
 type SensitivityFilter = 'ALL' | 'SFW' | 'NSFW';
 type EvidenceFilter = 'ALL' | 'DIRECT' | 'HEURISTIC';
 type Mode = 'solo' | 'party';
@@ -274,6 +275,7 @@ export default function App() {
             <SourceMeta standardCount={standardCount} nsfwCount={nsfwCount} directCount={sourceStats?.direct} />
           </form>
         )}
+        <SourceAvailabilityPanel stats={sourceStats} data={null} />
         {error && <div className="error" role="alert">{error}</div>}
       </section>
 
@@ -308,6 +310,7 @@ export default function App() {
 
           <EvidenceOverview data={data} />
           {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
+          <SourceAvailabilityPanel stats={sourceStats} data={data} />
 
           <div className="filter-deck">
             <div className="filter-deck-head"><span>Explore results</span><small>{visible.length} shown</small></div>
@@ -366,6 +369,60 @@ function NsfwOption({ checked, onChange, disabled }: { checked: boolean; onChang
   );
 }
 
+function SourceAvailabilityPanel({ stats, data }: { stats: SourceStats | null; data: SearchResponse | null }) {
+  const providers = stats?.sourceAvailability ?? [];
+  const scanIssues = data?.results.filter((result) => result.status === 'UNKNOWN' || result.status === 'BLOCKED' || result.status === 'SKIPPED') ?? [];
+  const scanAnswered = data ? data.results.filter((result) => result.status === 'FOUND' || result.status === 'NOT_FOUND' || result.status === 'POSSIBLE').length : 0;
+  const exactReady = providers.filter((item) => item.state === 'exact').length;
+
+  return (
+    <details className="source-availability">
+      <summary>
+        <span>
+          <span className="eyebrow">SOURCE AVAILABILITY</span>
+          <strong>{data ? `${scanAnswered}/${data.results.length} checks returned a usable result` : `${exactReady} exact provider checks ready`}</strong>
+        </span>
+        <span className="availability-summary">{data ? `${scanIssues.length} need attention` : `${stats?.standard ?? '—'} public sites`}</span>
+      </summary>
+
+      <div className="availability-body">
+        <div className="availability-intro">
+          <p>{data ? 'Ariadne keeps source problems separate from “No match.” A blocked or unclear site never counts as proof that an account is absent.' : 'Ariadne uses exact lookups where providers make them available and broad public-page checks everywhere else.'}</p>
+          {stats && <span>{stats.direct ?? '—'} exact checks · {stats.heuristic ?? '—'} broad checks · {stats.nsfw ?? '—'} optional adult checks</span>}
+        </div>
+
+        {providers.length > 0 && (
+          <div className="availability-providers">
+            {providers.map((provider) => (
+              <div className="availability-provider" key={provider.id}>
+                <div className="availability-provider-title"><strong>{provider.name}</strong><span className={'availability-badge ' + provider.state}>{provider.label}</span></div>
+                <p>{provider.detail}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {data && scanIssues.length > 0 && (
+          <div className="availability-issues">
+            <div className="availability-section-title"><span>Needs attention in this scan</span><small>{scanIssues.length} source{scanIssues.length === 1 ? '' : 's'}</small></div>
+            {scanIssues.slice(0, 12).map((result) => (
+              <div className="availability-issue" key={result.sourceId}>
+                <strong>{result.sourceName}</strong>
+                <span className={'issue-status ' + result.status.toLowerCase()}>{statusLabel[result.status]}</span>
+                <small>{result.status === 'BLOCKED' ? 'The site limited the check.' : result.status === 'SKIPPED' ? 'The username format did not fit this site.' : 'The response was not strong enough to decide.'}</small>
+              </div>
+            ))}
+            {scanIssues.length > 12 && <p className="availability-more">+ {scanIssues.length - 12} more source issues are listed in the results below.</p>}
+          </div>
+        )}
+
+        {data && scanIssues.length === 0 && (
+          <div className="availability-clear"><strong>No source availability issues in this scan.</strong><span>Every checked source returned a usable result.</span></div>
+        )}
+      </div>
+    </details>
+  );
+}
 function EvidenceOverview({ data }: { data: SearchResponse }) {
   const direct = data.results.filter((result) => result.evidenceBasis === 'direct-api');
   const heuristic = data.results.filter((result) => result.evidenceBasis === 'catalog-rule');
