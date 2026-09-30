@@ -6,6 +6,24 @@ Ariadne is an evidence-first public account discovery tool. Give it a username a
 
 The core rule is simple: **HTTP 200 is not proof that an account exists.** Direct API identity matches can become `FOUND`; broader catalog rules are reported as `POSSIBLE` until a human opens the profile and confirms it. Rate limits, anti-bot responses, network failures, and ambiguous responses stay `BLOCKED` or `UNKNOWN`.
 
+## v0.4 — Evidence basis + broader coverage
+
+v0.4 makes the distinction between strong and heuristic evidence visible instead of hiding it behind a generic confidence label.
+
+Every result now reports an evidence basis:
+
+- **Direct identity** — a public API returns an account identifier that can be compared with the requested username.
+- **Heuristic rule** — a public profile endpoint behaves like an existing profile, but the response does not contain enough identity evidence to promote it beyond `POSSIBLE` automatically.
+
+The report UI adds an evidence summary, direct/heuristic filtering, basis badges, and an explanation inside every expanded result. The search-field example is deliberately generic (`e.g. exampleuser`) rather than using the repository owner's username.
+
+Coverage also expands in two ways:
+
+- **AniList** joins the direct identity adapters using its public GraphQL endpoint.
+- **22 additional first-party public-profile rules** are added from Ariadne's already-pinned Sherlock source snapshot: 9GAG, Academia.edu, Airbit, Airliners, Apple Developer, Apple Discussions, Aparat, Archive of Our Own, Arduino Forum, Asciinema, AudioJungle, AWS Skills Profile, BOOTH, BiggerPockets, Bitwarden Forum, Blipfoto, Blogger, BookCrossing, Brave Community, BuzzFeed, Cfx.re Forum, and Pinterest.
+
+These additional catalog rules still follow Ariadne semantics: a generic successful response is only `POSSIBLE`, never `FOUND`. Challenges, access controls, and ambiguous failures remain `BLOCKED` or `UNKNOWN`.
+
 ## v0.3 — Thread Party
 
 Thread Party compares 2–4 usernames using the same public-source evidence model as solo scans. It is intentionally client-side and ephemeral: Ariadne does not create accounts, save party members, persist comparison reports, or publish leaderboards.
@@ -24,14 +42,14 @@ NSFW/adult sources remain off by default. If enabled for Thread Party, the same 
 
 Ariadne combines two source tiers:
 
-- **Verified core adapters** for GitHub, GitLab, Hacker News, Codeberg, and Reddit. These use source-specific public API identity evidence.
+- **Direct identity adapters** for GitHub, GitLab, Hacker News, Codeberg, Reddit, and AniList. These use source-specific public API identity evidence where available.
 - **Wide public-profile catalog** covering social, developer, gaming, creative, media, and community sites. The catalog is adapted from a pinned Sherlock Project source manifest and keeps heuristic hits separate from confirmed matches.
 
 Adult/explicit sources are **off by default**. The UI has a deliberate **Include NSFW / adult sources** toggle, and results can be filtered to standard-only or NSFW-only after a scan. Ariadne only checks public profile pages and does not use signup forms, password-reset flows, breach data, or authenticated/private APIs.
 
 Large scans are split into small server-side batches. Each Worker request checks at most 20 sources with no more than five concurrent outbound connections, staying below Cloudflare Workers' six-simultaneous-connection limit while allowing the browser to accumulate a much larger report.
 
-Each result includes status, confidence, category, sensitivity flag, profile URL, HTTP state, verification signals, timestamp, and duration. The UI can open a profile, copy its URL, copy the evidence record, and export the complete report as JSON.
+Each result includes status, confidence, evidence basis, category, sensitivity flag, profile URL, HTTP state, verification signals, timestamp, and duration. The UI can open a profile, copy its URL, copy the evidence record, and export the complete report as JSON.
 
 ## Status model
 
@@ -77,7 +95,7 @@ The Worker includes a Cloudflare Rate Limiting binding named `SEARCH_RATE_LIMITE
 
 ## Source provenance
 
-The wide catalog adapts public-profile rules from the MIT-licensed Sherlock Project manifest pinned to commit `e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`. Ariadne does not copy Sherlock's yes/no semantics: catalog positives are deliberately downgraded to `POSSIBLE`, challenge pages stay `BLOCKED`, and direct high-confidence `FOUND` results remain limited to Ariadne's verified adapters.
+The wide catalog adapts public-profile rules from the MIT-licensed Sherlock Project manifest pinned to commit `e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`. Ariadne does not copy Sherlock's yes/no semantics: catalog positives are deliberately downgraded to `POSSIBLE`, challenge pages stay `BLOCKED`, and direct high-confidence `FOUND` results remain limited to Ariadne's direct identity adapters.
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Sherlock license notice.
 
