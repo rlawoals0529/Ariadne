@@ -67,6 +67,22 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
 });
 
 
+test('Last.fm stays unavailable until public-use approval is explicitly configured', () => {
+  const status = sourceAvailability({
+    LASTFM_API_KEY: 'lastfm-key',
+  }).find((item) => item.id === 'lastfm');
+  assert.ok(status);
+  assert.equal(status.state, 'unavailable');
+  assert.equal(status.label, 'Approval required');
+
+  const approved = sourceAvailability({
+    LASTFM_API_KEY: 'lastfm-key',
+    LASTFM_PUBLIC_APPROVED: 'true',
+  }).find((item) => item.id === 'lastfm');
+  assert.ok(approved);
+  assert.equal(approved.state, 'exact');
+});
+
 test('source availability explains credential fallbacks without exposing secrets', () => {
   const missing = sourceAvailability({});
   assert.deepEqual(
@@ -85,6 +101,7 @@ test('source availability explains credential fallbacks without exposing secrets
     YOUTUBE_API_KEY: 'youtube-key',
     STEAM_WEB_API_KEY: 'steam-key',
     LASTFM_API_KEY: 'lastfm-key',
+    LASTFM_PUBLIC_APPROVED: 'true',
   });
 
   assert.deepEqual(ready.map((item) => item.state), ['exact', 'exact', 'exact', 'exact']);
@@ -101,6 +118,7 @@ test('popular credential-backed adapters replace weaker catalog checks when conf
     YOUTUBE_API_KEY: 'youtube-key',
     STEAM_WEB_API_KEY: 'steam-key',
     LASTFM_API_KEY: 'lastfm-key',
+    LASTFM_PUBLIC_APPROVED: 'true',
   };
   const selected = selectSources(true, credentials);
   const stats = searchableSourceStats(credentials);
