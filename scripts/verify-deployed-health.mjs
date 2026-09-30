@@ -24,8 +24,17 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
     } else {
       const health = JSON.parse(healthText);
       const healthMatches = health.ok === true && health.service === expected.service && health.version === expected.version;
+      const availability = health.sources?.sourceAvailability;
+      const availabilityIds = Array.isArray(availability) ? availability.map((item) => item.id).sort() : [];
+      const expectedAvailabilityIds = ['lastfm', 'steam-community', 'twitch', 'youtube'];
+      const availabilityMatches = availabilityIds.length === expectedAvailabilityIds.length &&
+        availabilityIds.every((id, index) => id === expectedAvailabilityIds[index]) &&
+        availability.every((item) => item && ['exact', 'fallback', 'unavailable'].includes(item.state) &&
+          typeof item.name === 'string' && typeof item.label === 'string' && typeof item.detail === 'string');
       if (!healthMatches) {
         lastError = `health metadata mismatch: ${healthText.slice(0, 300)}`;
+      } else if (!availabilityMatches) {
+        lastError = `source availability metadata mismatch: ${healthText.slice(0, 500)}`;
       } else {
         const pageResponse = await fetch(`${baseUrl}/?verify=${Date.now()}-${attempt}`, {
           headers: { 'cache-control': 'no-cache', pragma: 'no-cache' },
