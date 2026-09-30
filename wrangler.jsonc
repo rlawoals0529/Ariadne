@@ -15,7 +15,7 @@
     {
       "name": "SEARCH_RATE_LIMITER",
       "namespace_id": "240529",
-      "simple": { "limit": 30, "period": 60 }
+      "simple": { "limit": 40, "period": 60 }
     }
   ]
 }
