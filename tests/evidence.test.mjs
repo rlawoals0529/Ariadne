@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { apiIdentityVerdict, classifyHttpFailure } from '../.test-dist/worker/evidence.js';
 import { sources, sourceStats } from '../.test-dist/worker/sources.js';
-import { searchableSourceStats, selectSources } from '../.test-dist/worker/search.js';
+import { searchableSourceStats, searchUsername, selectSources } from '../.test-dist/worker/search.js';
 
 test('found requires an identifier match', () => {
   const verdict = apiIdentityVerdict({ httpStatus: 200, expected: 'alice', actual: 'Alice' });
@@ -99,6 +99,24 @@ test('exact adapters only confirm matching usernames', async (t) => {
   }
 });
 
+test('broad website rules cannot create definitive Not found results', async () => {
+  const selected = selectSources(false);
+  const twitchIndex = selected.findIndex((source) => source.id === 'catalog-twitch');
+  assert.ok(twitchIndex >= 0, 'Twitch catalog rule should be searchable');
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response("<meta content='Twitch is the world&#39;s leading video platform and community for gamers.'>", { status: 200 });
+    const report = await searchUsername('exampleuser', { includeNsfw: false, cursor: twitchIndex });
+    const twitch = report.results.find((result) => result.sourceId === 'catalog-twitch');
+    assert.ok(twitch, 'Twitch result should be present in the batch');
+    assert.equal(twitch.status, 'UNKNOWN');
+    assert.match(twitch.reason, /cannot safely rule the account out/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('Sherlock-derived rules never become confirmed solely from a 200', async (t) => {
   const source = sources.find((item) => item.id === 'catalog-about-me');
   assert.ok(source, 'About.me catalog source should exist');
@@ -112,7 +130,7 @@ test('Sherlock-derived rules never become confirmed solely from a 200', async (t
       assert.equal(result.verdict.confidence, 'medium');
     });
 
-    await t.test('404 becomes not found', async () => {
+    await t.test('raw catalog 404 remains a weak missing signal before the search safety layer', async () => {
       globalThis.fetch = async () => new Response('missing', { status: 404 });
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'NOT_FOUND');
