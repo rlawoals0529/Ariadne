@@ -18,7 +18,7 @@ The strictness is intentional. A false positive is noisy; a false negative can h
 
 ## Exact integrations
 
-Ariadne has exact adapters for GitHub, GitLab, Hacker News, Codeberg, Reddit, AniList, Bluesky, Chess.com, Codeforces, Codewars, DEV Community, Hugging Face, Keybase, Lichess, Scratch, Roblox, Mastodon.social, and Last.fm. Twitch, YouTube, Steam Community, and Last.fm use server-side credentials when required; without them Ariadne falls back to the weaker public-page check rather than claiming exact evidence.
+Ariadne has exact adapters for GitHub, GitLab, Hacker News, Codeberg, Reddit, AniList, Bluesky, Chess.com, Codeforces, Codewars, DEV Community, Hugging Face, Keybase, Lichess, Scratch, Roblox, and Mastodon.social. Twitch, YouTube, and Steam Community use server-side credentials when required. Last.fm is credential-gated and additionally requires explicit public-use approval before the Worker enables its public adapter. Without a credential, or without the required approval flag, Ariadne does not claim Last.fm exact evidence.
 
 Worker secrets used by those credential-gated adapters:
 
@@ -27,6 +27,7 @@ Worker secrets used by those credential-gated adapters:
 - `YOUTUBE_API_KEY`
 - `STEAM_WEB_API_KEY`
 - `LASTFM_API_KEY`
+- `LASTFM_PUBLIC_APPROVED` (only set to `true` after Last.fm has provided the required written approval for public access)
 
 Keep those values server-side. Do not put them in the browser bundle or commit them.
 
