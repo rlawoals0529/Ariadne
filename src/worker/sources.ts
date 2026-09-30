@@ -1,8 +1,12 @@
+import type { SourceCategory } from '../shared/types.js';
 import { apiIdentityVerdict, classifyHttpFailure, type Verdict } from './evidence.js';
+import { catalogSources, catalogStats } from './catalog.js';
 
 export interface SourceDefinition {
   id: string;
   name: string;
+  category: SourceCategory;
+  nsfw: boolean;
   profileUrl: (username: string) => string;
   validate?: (username: string) => boolean;
   probe: (username: string, signal: AbortSignal) => Promise<{ httpStatus: number; verdict: Verdict }>;
@@ -10,17 +14,19 @@ export interface SourceDefinition {
 
 const jsonHeaders = {
   Accept: 'application/json',
-  'User-Agent': 'Ariadne/0.1 public-profile-verifier',
+  'User-Agent': 'Ariadne/0.2 public-profile-verifier',
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<Response> {
   return fetch(url, { headers: jsonHeaders, redirect: 'follow', signal });
 }
 
-export const sources: SourceDefinition[] = [
+const coreSources: SourceDefinition[] = [
   {
     id: 'github',
     name: 'GitHub',
+    category: 'developer',
+    nsfw: false,
     profileUrl: (u) => `https://github.com/${encodeURIComponent(u)}`,
     validate: (u) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(u),
     probe: async (u, signal) => {
@@ -34,6 +40,8 @@ export const sources: SourceDefinition[] = [
   {
     id: 'gitlab',
     name: 'GitLab',
+    category: 'developer',
+    nsfw: false,
     profileUrl: (u) => `https://gitlab.com/${encodeURIComponent(u)}`,
     probe: async (u, signal) => {
       const response = await fetchJson(`https://gitlab.com/api/v4/users?username=${encodeURIComponent(u)}`, signal);
@@ -48,6 +56,8 @@ export const sources: SourceDefinition[] = [
   {
     id: 'hackernews',
     name: 'Hacker News',
+    category: 'developer',
+    nsfw: false,
     profileUrl: (u) => `https://news.ycombinator.com/user?id=${encodeURIComponent(u)}`,
     probe: async (u, signal) => {
       const response = await fetchJson(`https://hacker-news.firebaseio.com/v0/user/${encodeURIComponent(u)}.json`, signal);
@@ -74,6 +84,8 @@ export const sources: SourceDefinition[] = [
   {
     id: 'codeberg',
     name: 'Codeberg',
+    category: 'developer',
+    nsfw: false,
     profileUrl: (u) => `https://codeberg.org/${encodeURIComponent(u)}`,
     probe: async (u, signal) => {
       const response = await fetchJson(`https://codeberg.org/api/v1/users/${encodeURIComponent(u)}`, signal);
@@ -86,6 +98,8 @@ export const sources: SourceDefinition[] = [
   {
     id: 'reddit',
     name: 'Reddit',
+    category: 'social',
+    nsfw: false,
     profileUrl: (u) => `https://www.reddit.com/user/${encodeURIComponent(u)}`,
     validate: (u) => /^[A-Za-z0-9_-]{3,20}$/.test(u),
     probe: async (u, signal) => {
@@ -97,3 +111,11 @@ export const sources: SourceDefinition[] = [
     },
   },
 ];
+
+export const sources: SourceDefinition[] = [...coreSources, ...catalogSources];
+export const sourceStats = {
+  total: sources.length,
+  nsfw: catalogStats.nsfw,
+  standard: coreSources.length + catalogStats.standard,
+  provenance: catalogStats.provenance,
+} as const;
