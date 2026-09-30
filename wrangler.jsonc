@@ -6,6 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "upload_source_maps": true,
+  "keep_vars": true,
+  "secrets": {
+    "required": ["YOUTUBE_API_KEY"]
+  },
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
