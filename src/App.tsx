@@ -324,7 +324,7 @@ export default function App() {
 
       {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onCopy={copyPartyCard} />}
 
-      <footer><span>ARIADNE v0.8</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
+      <footer><span>ARIADNE v0.9</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
     </main>
   );
 }
