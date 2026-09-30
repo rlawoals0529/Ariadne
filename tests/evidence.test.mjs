@@ -41,22 +41,33 @@ test('wide catalog is substantial, direct checks expanded, and NSFW stays opt-in
   assert.ok(searchable.total >= 120, `expected at least 120 searchable sources, got ${searchable.total}`);
   assert.ok(searchable.standard >= 100, `expected at least 100 standard sources, got ${searchable.standard}`);
   assert.ok(sourceStats.nsfw >= 15, `expected at least 15 NSFW sources, got ${sourceStats.nsfw}`);
-  assert.ok(searchable.direct >= 9, `expected at least 9 direct adapters, got ${searchable.direct}`);
+  assert.ok(searchable.direct >= 13, `expected at least 13 direct adapters, got ${searchable.direct}`);
   assert.equal(selectSources(false).some((source) => source.nsfw), false);
   assert.equal(selected.filter((source) => source.nsfw).length, searchable.nsfw);
-  for (const sourceId of ['anilist', 'bluesky', 'chess-com', 'codeforces']) {
-    assert.ok(sources.some((source) => source.id === sourceId), `${sourceId} direct adapter should exist`);
+
+  for (const sourceId of ['anilist', 'bluesky', 'chess-com', 'codeforces', 'codewars', 'dev-community', 'hugging-face', 'keybase']) {
+    assert.ok(selected.some((source) => source.id === sourceId), `${sourceId} exact adapter should be searchable`);
   }
-  for (const duplicateId of ['catalog-bluesky', 'catalog-chess-com', 'catalog-codeforces']) {
+
+  for (const duplicateId of [
+    'catalog-bluesky',
+    'catalog-chess-com',
+    'catalog-codeforces',
+    'catalog-codewars',
+    'catalog-dev-community',
+    'catalog-hugging-face',
+    'catalog-keybase',
+  ]) {
     assert.equal(selected.some((source) => source.id === duplicateId), false, `${duplicateId} should not be searched when an exact adapter exists`);
   }
 });
 
 test('exact adapters only confirm matching usernames', async (t) => {
   const originalFetch = globalThis.fetch;
+  const selected = selectSources(true);
   try {
     await t.test('Bluesky confirms the returned handle', async () => {
-      const source = sources.find((item) => item.id === 'bluesky');
+      const source = selected.find((item) => item.id === 'bluesky');
       assert.ok(source);
       globalThis.fetch = async () => Response.json({ handle: 'alice.bsky.social' });
       const result = await source.probe('alice', new AbortController().signal);
@@ -64,7 +75,7 @@ test('exact adapters only confirm matching usernames', async (t) => {
     });
 
     await t.test('Chess.com confirms the returned username', async () => {
-      const source = sources.find((item) => item.id === 'chess-com');
+      const source = selected.find((item) => item.id === 'chess-com');
       assert.ok(source);
       globalThis.fetch = async () => Response.json({ username: 'Alice' });
       const result = await source.probe('alice', new AbortController().signal);
@@ -72,7 +83,7 @@ test('exact adapters only confirm matching usernames', async (t) => {
     });
 
     await t.test('Chess.com 404 is an explicit miss', async () => {
-      const source = sources.find((item) => item.id === 'chess-com');
+      const source = selected.find((item) => item.id === 'chess-com');
       assert.ok(source);
       globalThis.fetch = async () => new Response('missing', { status: 404 });
       const result = await source.probe('alice', new AbortController().signal);
@@ -80,7 +91,7 @@ test('exact adapters only confirm matching usernames', async (t) => {
     });
 
     await t.test('Codeforces confirms the returned handle', async () => {
-      const source = sources.find((item) => item.id === 'codeforces');
+      const source = selected.find((item) => item.id === 'codeforces');
       assert.ok(source);
       globalThis.fetch = async () => Response.json({ status: 'OK', result: [{ handle: 'Alice' }] });
       const result = await source.probe('alice', new AbortController().signal);
@@ -88,11 +99,59 @@ test('exact adapters only confirm matching usernames', async (t) => {
     });
 
     await t.test('Codeforces missing user stays a miss, not a match', async () => {
-      const source = sources.find((item) => item.id === 'codeforces');
+      const source = selected.find((item) => item.id === 'codeforces');
       assert.ok(source);
       globalThis.fetch = async () => Response.json({ status: 'FAILED', comment: 'handles: User with handle alice not found' });
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('Codewars confirms API username', async () => {
+      const source = selected.find((item) => item.id === 'codewars');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'Alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('DEV Community confirms API username', async () => {
+      const source = selected.find((item) => item.id === 'dev-community');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Hugging Face confirms overview username', async () => {
+      const source = selected.find((item) => item.id === 'hugging-face');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'Alice' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Keybase confirms basics username', async () => {
+      const source = selected.find((item) => item.id === 'keybase');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ them: [{ basics: { username: 'alice' } }] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'FOUND');
+    });
+
+    await t.test('Keybase null lookup is an explicit miss', async () => {
+      const source = selected.find((item) => item.id === 'keybase');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ them: [null] });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'NOT_FOUND');
+    });
+
+    await t.test('exact adapter mismatch never becomes found', async () => {
+      const source = selected.find((item) => item.id === 'codewars');
+      assert.ok(source);
+      globalThis.fetch = async () => Response.json({ username: 'bob' });
+      const result = await source.probe('alice', new AbortController().signal);
+      assert.equal(result.verdict.status, 'UNKNOWN');
     });
   } finally {
     globalThis.fetch = originalFetch;
