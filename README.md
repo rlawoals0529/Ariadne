@@ -49,7 +49,7 @@ Validation:
 npm run check
 ```
 
-`check` runs the evidence tests, TypeScript/build validation, and a Wrangler deployment dry run.
+`check` runs the evidence tests, TypeScript/build validation, and a Wrangler deployment dry run. Pull requests run the same build path in GitHub Actions before merge.
 
 ## Deployment
 
