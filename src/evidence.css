@@ -1,0 +1,97 @@
+.evidence-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+.evidence-overview > div {
+  padding: 18px 18px 20px 0;
+  display: grid;
+  gap: 5px;
+}
+.evidence-overview > div + div {
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+}
+.evidence-overview span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.evidence-overview strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  font-weight: 500;
+}
+.evidence-overview small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.evidence-filters {
+  padding-top: 0;
+}
+.evidence-filters button.active {
+  background: #3f485b;
+}
+.basis-badge {
+  font-size: 8px;
+  line-height: 1;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 850;
+}
+.basis-badge.direct-api {
+  color: var(--found);
+  border-color: #95ac9f;
+  background: #e5ece7;
+}
+.basis-badge.catalog-rule {
+  color: var(--possible);
+  border-color: #aab2c5;
+  background: #e9ebf0;
+}
+.evidence-explainer {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 14px;
+  align-items: start;
+  border-left: 2px solid var(--line);
+  padding: 10px 12px;
+  margin: 8px 0 4px;
+  background: rgba(255, 253, 248, .45);
+}
+.evidence-explainer strong {
+  font-size: 11px;
+}
+.evidence-explainer span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.status-found .evidence-explainer {
+  border-left-color: var(--found);
+}
+.status-possible .evidence-explainer {
+  border-left-color: var(--possible);
+}
+@media (max-width: 760px) {
+  .evidence-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .evidence-overview > div {
+    border-bottom: 1px solid var(--line);
+  }
+  .evidence-overview > div:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .evidence-explainer {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

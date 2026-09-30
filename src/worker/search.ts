@@ -1,4 +1,4 @@
-import type { ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
+import type { EvidenceBasis, ResultStatus, SearchResponse, SourceResult } from '../shared/types.js';
 import { sources, type SourceDefinition } from './sources.js';
 
 const TIMEOUT_MS = 4500;
@@ -22,10 +22,15 @@ function eligibleSources(): SourceDefinition[] {
   return sources.filter((source) => !DISABLED_WIDE_SOURCE_IDS.has(source.id));
 }
 
+function evidenceBasis(source: SourceDefinition): EvidenceBasis {
+  return source.id.startsWith('catalog-') ? 'catalog-rule' : 'direct-api';
+}
+
 async function checkSource(source: SourceDefinition, username: string): Promise<SourceResult> {
   const checkedAt = new Date().toISOString();
   const started = Date.now();
   const profileUrl = source.profileUrl(username);
+  const basis = evidenceBasis(source);
 
   if (source.validate && !source.validate(username)) {
     return {
@@ -34,6 +39,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       profileUrl,
       category: source.category,
       nsfw: source.nsfw,
+      evidenceBasis: basis,
       status: 'SKIPPED',
       confidence: 'none',
       reason: 'This username does not satisfy the source’s documented identifier format.',
@@ -54,6 +60,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       profileUrl,
       category: source.category,
       nsfw: source.nsfw,
+      evidenceBasis: basis,
       httpStatus,
       checkedAt,
       durationMs: Date.now() - started,
@@ -67,6 +74,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       profileUrl,
       category: source.category,
       nsfw: source.nsfw,
+      evidenceBasis: basis,
       status: 'UNKNOWN',
       confidence: 'none',
       reason: timedOut ? 'The source did not answer before the verification timeout.' : 'The source request failed before Ariadne could verify the account.',
@@ -120,10 +128,13 @@ export function selectSources(includeNsfw: boolean): SourceDefinition[] {
 export function searchableSourceStats() {
   const all = selectSources(true);
   const nsfw = all.filter((source) => source.nsfw).length;
+  const direct = all.filter((source) => evidenceBasis(source) === 'direct-api').length;
   return {
     total: all.length,
     standard: all.length - nsfw,
     nsfw,
+    direct,
+    heuristic: all.length - direct,
     disabled: sources.length - all.length,
   };
 }

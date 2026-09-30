@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { apiIdentityVerdict, classifyHttpFailure } from '../.test-dist/worker/evidence.js';
 import { sources, sourceStats } from '../.test-dist/worker/sources.js';
-import { selectSources } from '../.test-dist/worker/search.js';
+import { searchableSourceStats, selectSources } from '../.test-dist/worker/search.js';
 
 test('found requires an identifier match', () => {
   const verdict = apiIdentityVerdict({ httpStatus: 200, expected: 'alice', actual: 'Alice' });
@@ -36,10 +36,15 @@ test('upstream server errors stay unknown', () => {
 });
 
 test('wide catalog is substantial and NSFW stays opt-in', () => {
-  assert.ok(sourceStats.total >= 80, `expected at least 80 sources, got ${sourceStats.total}`);
+  const searchable = searchableSourceStats();
+  assert.ok(searchable.total >= 120, `expected at least 120 searchable sources, got ${searchable.total}`);
+  assert.ok(searchable.standard >= 100, `expected at least 100 standard sources, got ${searchable.standard}`);
   assert.ok(sourceStats.nsfw >= 15, `expected at least 15 NSFW sources, got ${sourceStats.nsfw}`);
+  assert.ok(searchable.direct >= 6, `expected at least 6 direct adapters, got ${searchable.direct}`);
   assert.equal(selectSources(false).some((source) => source.nsfw), false);
-  assert.equal(selectSources(true).filter((source) => source.nsfw).length, sourceStats.nsfw);
+  assert.equal(selectSources(true).filter((source) => source.nsfw).length, searchable.nsfw);
+  assert.ok(sources.some((source) => source.id === 'anilist'), 'AniList direct adapter should exist');
+  assert.ok(sources.some((source) => source.id === 'catalog-pinterest'), 'Pinterest catalog source should exist');
 });
 
 test('Sherlock-derived rules never become confirmed solely from a 200', async (t) => {
@@ -66,6 +71,20 @@ test('Sherlock-derived rules never become confirmed solely from a 200', async (t
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'BLOCKED');
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('extended catalog positives remain possible', async () => {
+  const source = sources.find((item) => item.id === 'catalog-9gag');
+  assert.ok(source, '9GAG extended catalog source should exist');
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response('<html><title>profile</title></html>', { status: 200 });
+    const result = await source.probe('exampleuser', new AbortController().signal);
+    assert.equal(result.verdict.status, 'POSSIBLE');
+    assert.notEqual(result.verdict.status, 'FOUND');
   } finally {
     globalThis.fetch = originalFetch;
   }

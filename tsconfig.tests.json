@@ -9,5 +9,5 @@
     "outDir": ".test-dist",
     "rootDir": "src"
   },
-  "include": ["src/shared/**/*.ts", "src/worker/evidence.ts", "src/worker/catalog.ts", "src/worker/sources.ts", "src/worker/search.ts"]
+  "include": ["src/shared/**/*.ts", "src/worker/evidence.ts", "src/worker/catalog.ts", "src/worker/extendedCatalog.ts", "src/worker/sources.ts", "src/worker/search.ts"]
 }
