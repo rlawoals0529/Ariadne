@@ -148,10 +148,9 @@ function youtubeSource(credentials: PopularSourceCredentials): SourceDefinition 
       const params = new URLSearchParams({
         part: 'snippet',
         forHandle: u,
-        key: credentials.YOUTUBE_API_KEY!,
       });
       const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?${params.toString()}`, {
-        headers: JSON_HEADERS,
+        headers: { ...JSON_HEADERS, 'X-Goog-Api-Key': credentials.YOUTUBE_API_KEY! },
         signal,
       });
       const infrastructure = classifyHttpFailure(response.status);

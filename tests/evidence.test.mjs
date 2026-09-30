@@ -122,10 +122,16 @@ test('popular credential-backed exact checks stay conservative', async (t) => {
       assert.equal(result.verdict.status, 'NOT_FOUND');
     });
 
-    await t.test('YouTube confirms an exact handle lookup', async () => {
+    await t.test('YouTube confirms an exact handle lookup without putting the API key in the URL', async () => {
       const source = selected.find((item) => item.id === 'youtube');
       assert.ok(source);
-      globalThis.fetch = async () => Response.json({ items: [{ id: 'channel-1', snippet: { customUrl: '@Alice' } }] });
+      globalThis.fetch = async (input, init) => {
+        const url = String(input);
+        assert.equal(url.includes('youtube-key'), false);
+        assert.equal(url.includes('key='), false);
+        assert.equal(new Headers(init?.headers).get('X-Goog-Api-Key'), 'youtube-key');
+        return Response.json({ items: [{ id: 'channel-1', snippet: { customUrl: '@Alice' } }] });
+      };
       const result = await source.probe('alice', new AbortController().signal);
       assert.equal(result.verdict.status, 'FOUND');
     });
