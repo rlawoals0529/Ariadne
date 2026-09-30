@@ -2,7 +2,14 @@ import { searchableSourceStats, searchUsername, validateCursor, validateUsername
 import { sourceStats } from './sources.js';
 
 type RateLimit = { limit(options: { key: string }): Promise<{ success: boolean }> };
-type Env = { SEARCH_RATE_LIMITER: RateLimit; ASSETS?: { fetch(request: Request): Promise<Response> } };
+type Env = {
+  SEARCH_RATE_LIMITER: RateLimit;
+  ASSETS?: { fetch(request: Request): Promise<Response> };
+  TWITCH_CLIENT_ID?: string;
+  TWITCH_CLIENT_SECRET?: string;
+  YOUTUBE_API_KEY?: string;
+  STEAM_WEB_API_KEY?: string;
+};
 
 const SECURITY_HEADERS = {
   'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
@@ -18,8 +25,8 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}): 
   });
 }
 
-function publicSourceStats() {
-  return { ...searchableSourceStats(), provenance: sourceStats.provenance };
+function publicSourceStats(env: Env) {
+  return { ...searchableSourceStats(env), provenance: sourceStats.provenance };
 }
 
 async function handleSearch(request: Request, env: Env): Promise<Response> {
@@ -54,7 +61,7 @@ async function handleSearch(request: Request, env: Env): Promise<Response> {
   const limiter = await env.SEARCH_RATE_LIMITER.limit({ key: `username-search:${client}` });
   if (!limiter.success) return json({ error: 'search rate limit exceeded; retry shortly' }, 429);
 
-  return json(await searchUsername(username, { includeNsfw: body.includeNsfw === true, cursor }));
+  return json(await searchUsername(username, { includeNsfw: body.includeNsfw === true, cursor }, env));
 }
 
 export default {
@@ -62,10 +69,10 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === 'GET' && url.pathname === '/api/health') {
-        return json({ ok: true, service: 'ariadne', version: '0.8.0', sources: publicSourceStats() });
+        return json({ ok: true, service: 'ariadne', version: '0.9.0', sources: publicSourceStats(env) });
       }
       if (request.method === 'GET' && url.pathname === '/api/sources') {
-        return json(publicSourceStats());
+        return json(publicSourceStats(env));
       }
       if (request.method === 'POST' && url.pathname === '/api/search') {
         return await handleSearch(request, env);
