@@ -26,6 +26,8 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-mastodon-social',
   'catalog-lichess',
   'catalog-pypi',
+  'catalog-rubygems',
+  'catalog-tetr-io',
   'catalog-tryhackme',
   'catalog-x-twitter',
 ]);
