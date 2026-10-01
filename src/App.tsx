@@ -996,15 +996,21 @@ function AccountReviewBoard({
               <article className="review-row" key={result.sourceId}>
                 <div className="review-source">
                   <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
-                  <div>
-                    <strong>{result.sourceName}{result.nsfw && <span className="nsfw-badge">18+</span>}</strong>
-                    <small>{CATEGORY_LABELS[result.category]} · {statusLabel[result.status]}</small>
+                  <div className="review-source-main">
+                    <div className="review-source-title">
+                      <strong>{result.sourceName}{result.nsfw && <span className="nsfw-badge">18+</span>}</strong>
+                      <small>{CATEGORY_LABELS[result.category]} · {statusLabel[result.status]}</small>
+                    </div>
+                    <div className="review-source-links">
+                      <a href={result.profileUrl} target="_blank" rel="noreferrer">Open profile <span aria-hidden="true">↗</span></a>
+                      {review?.ownership && <button type="button" onClick={() => onReset(result.sourceId)}>Reset</button>}
+                    </div>
+                    <span className="review-source-note">{result.status === 'FOUND' ? 'Exact username returned by the site.' : 'Still needs a manual check.'}</span>
                   </div>
-                  <a href={result.profileUrl} target="_blank" rel="noreferrer">Open profile <span aria-hidden="true">↗</span></a>
                 </div>
 
-                <fieldset className="review-choice">
-                  <legend>Is this yours?</legend>
+                <div className="review-choice" role="group" aria-label={`Is ${result.sourceName} yours?`}>
+                  <span className="review-choice-label">Is this yours?</span>
                   <div>
                     {([
                       ['mine', 'Mine'],
@@ -1022,36 +1028,30 @@ function AccountReviewBoard({
                       </button>
                     ))}
                   </div>
-                </fieldset>
+                </div>
 
-                <fieldset className={`review-choice review-action ${isMine ? '' : 'disabled'}`}>
-                  <legend>What next?</legend>
-                  {isMine ? (
-                    <div>
-                      {([
-                        ['keep', 'Keep'],
-                        ['cleanup', 'Clean up'],
-                        ['done', 'Done'],
-                      ] as const).map(([value, label]) => (
-                        <button
-                          type="button"
-                          key={value}
-                          className={review?.action === value ? 'active' : ''}
-                          aria-pressed={review?.action === value}
-                          onClick={() => onAction(result.sourceId, value)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p>Mark this Mine before assigning a cleanup action.</p>
-                  )}
-                </fieldset>
-
-                <div className="review-row-foot">
-                  <span>{result.status === 'FOUND' ? 'The site returned this exact username.' : 'This profile still needs a manual check.'}</span>
-                  {review?.ownership && <button type="button" onClick={() => onReset(result.sourceId)}>Reset</button>}
+                <div className={`review-choice review-action ${isMine ? '' : 'disabled'}`} role="group" aria-label={`What to do with ${result.sourceName}`}>
+                  <span className="review-choice-label">What next?</span>
+                  <div>
+                    {([
+                      ['keep', 'Keep'],
+                      ['cleanup', 'Clean up'],
+                      ['done', 'Done'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={review?.action === value ? 'active' : ''}
+                        aria-pressed={review?.action === value}
+                        disabled={!isMine}
+                        title={isMine ? undefined : 'Mark this account Mine first'}
+                        onClick={() => onAction(result.sourceId, value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {!isMine && <small className="review-action-hint">Available after Mine</small>}
                 </div>
               </article>
             );
