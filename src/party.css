@@ -468,10 +468,14 @@
   min-height: 58px;
 }
 .overlap-source-heading {
+  position: sticky;
+  left: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   padding: 10px 12px;
   color: var(--muted);
+  background: var(--paper-deep);
   font-size: 8px;
   font-weight: 850;
   letter-spacing: .1em;
@@ -507,11 +511,15 @@
 }
 .overlap-source-row { min-height: 56px; }
 .overlap-source-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
   min-width: 0;
   display: grid;
   align-content: center;
   gap: 3px;
   padding: 9px 12px;
+  background: var(--paper);
 }
 .overlap-source-name strong {
   min-width: 0;
