@@ -1,6 +1,6 @@
 import type { SearchResponse, SourceResult } from './shared/types.js';
 
-function isTrail(result: SourceResult) {
+function isTrail(result: SourceResult): result is SourceResult & { status: 'FOUND' | 'POSSIBLE' } {
   return result.status === 'FOUND' || result.status === 'POSSIBLE';
 }
 
