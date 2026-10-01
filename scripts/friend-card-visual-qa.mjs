@@ -157,8 +157,8 @@ if (documentWidth > 390) errors.push('mobile document horizontal overflow: ' + d
 
 const mobileSvg = await captureDownload(mobile, 'mobile');
 for (const name of mobileNames) {
-  const shortened = name.slice(0, 13);
-  if (!mobileSvg.includes('@' + shortened)) errors.push('six-person SVG missing truncated handle prefix for @' + name);
+  const suffix = name.slice(-4);
+  if (!mobileSvg.includes(suffix)) errors.push('six-person SVG missing distinguishing handle suffix for @' + name);
 }
 await screenshotSvg(mobileSvg, 'friend-card-svg-six.jpg', 'mobile');
 
