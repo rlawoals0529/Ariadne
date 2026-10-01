@@ -1,6 +1,15 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
+import {
+  clearAccountReviews,
+  readAccountReviews,
+  updateAccountReview,
+  writeAccountReviews,
+  type AccountReviewState,
+  type ReviewAction,
+  type ReviewOwnership,
+} from './reviewState';
 import { buildShareHash, parseShareHash } from './shareState';
 import { buildFriendShareCardSvg } from './shareCard';
 import type { ResultStatus, SearchResponse, SourceCategory, SourceResult } from './shared/types';
@@ -104,6 +113,8 @@ export default function App() {
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [resultSearch, setResultSearch] = useState('');
+  const [accountReviews, setAccountReviews] = useState<AccountReviewState>({});
+  const [reviewFilter, setReviewFilter] = useState<'ALL' | 'UNREVIEWED' | 'MINE' | 'CLEANUP' | 'DONE'>('ALL');
 
   useEffect(() => {
     const shared = parseShareHash(window.location.hash);
@@ -123,6 +134,15 @@ export default function App() {
       .then((payload: SourceStats | null) => payload && setSourceStats(payload))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!data?.query) {
+      setAccountReviews({});
+      return;
+    }
+    setAccountReviews(readAccountReviews(window.localStorage, data.query));
+    setReviewFilter('ALL');
+  }, [data?.query]);
 
   const categoryOptions = useMemo(() => {
     if (!data) return [];
@@ -150,6 +170,45 @@ export default function App() {
 
   const activeFilterCount = [filter !== 'ALL', categoryFilter !== 'ALL', sensitivityFilter !== 'ALL', evidenceFilter !== 'ALL', Boolean(resultSearch.trim())].filter(Boolean).length;
   const advancedFilterCount = [sensitivityFilter !== 'ALL', evidenceFilter !== 'ALL'].filter(Boolean).length;
+
+  function setReviewOwnership(sourceId: string, ownership: ReviewOwnership) {
+    if (!data) return;
+    setAccountReviews((current) => {
+      const next = updateAccountReview(current, sourceId, {
+        ownership: current[sourceId]?.ownership === ownership ? null : ownership,
+      });
+      writeAccountReviews(window.localStorage, data.query, next);
+      return next;
+    });
+  }
+
+  function setReviewAction(sourceId: string, action: ReviewAction) {
+    if (!data) return;
+    setAccountReviews((current) => {
+      const next = updateAccountReview(current, sourceId, {
+        action: current[sourceId]?.action === action ? null : action,
+      });
+      writeAccountReviews(window.localStorage, data.query, next);
+      return next;
+    });
+  }
+
+  function resetSourceReview(sourceId: string) {
+    if (!data) return;
+    setAccountReviews((current) => {
+      const next = updateAccountReview(current, sourceId, { ownership: null, action: null });
+      writeAccountReviews(window.localStorage, data.query, next);
+      return next;
+    });
+  }
+
+  function clearReviewBoard() {
+    if (!data) return;
+    if (!window.confirm(`Clear the local review decisions saved for @${data.query}? This does not affect scan results.`)) return;
+    clearAccountReviews(window.localStorage, data.query);
+    setAccountReviews({});
+    setReviewFilter('ALL');
+  }
 
   function clearResultFilters() {
     setFilter('ALL');
@@ -501,6 +560,16 @@ export default function App() {
               onExplore={exploreThreadCategory}
             />
           )}
+          <AccountReviewBoard
+            data={data}
+            reviews={accountReviews}
+            filter={reviewFilter}
+            onFilter={setReviewFilter}
+            onOwnership={setReviewOwnership}
+            onAction={setReviewAction}
+            onReset={resetSourceReview}
+            onClear={clearReviewBoard}
+          />
           <div className="scan-support-stack" aria-label="Supporting scan details">
             {scanAnalytics && <ScanInsights analytics={scanAnalytics} complete={data.nextCursor === null && !loading} />}
             <SourceAvailabilityPanel stats={sourceStats} data={data} />
@@ -831,6 +900,176 @@ function ProfileSummary({
     </section>
   );
 }
+function AccountReviewBoard({
+  data,
+  reviews,
+  filter,
+  onFilter,
+  onOwnership,
+  onAction,
+  onReset,
+  onClear,
+}: {
+  data: SearchResponse;
+  reviews: AccountReviewState;
+  filter: 'ALL' | 'UNREVIEWED' | 'MINE' | 'CLEANUP' | 'DONE';
+  onFilter: (filter: 'ALL' | 'UNREVIEWED' | 'MINE' | 'CLEANUP' | 'DONE') => void;
+  onOwnership: (sourceId: string, ownership: ReviewOwnership) => void;
+  onAction: (sourceId: string, action: ReviewAction) => void;
+  onReset: (sourceId: string) => void;
+  onClear: () => void;
+}) {
+  const candidates = data.results
+    .filter((result) => result.status === 'FOUND' || result.status === 'POSSIBLE')
+    .sort((a, b) => resultPriority[a.status] - resultPriority[b.status] || a.sourceName.localeCompare(b.sourceName));
+
+  if (!candidates.length) return null;
+
+  const reviewed = candidates.filter((result) => Boolean(reviews[result.sourceId]?.ownership)).length;
+  const mine = candidates.filter((result) => reviews[result.sourceId]?.ownership === 'mine').length;
+  const cleanup = candidates.filter((result) => reviews[result.sourceId]?.action === 'cleanup').length;
+  const done = candidates.filter((result) => reviews[result.sourceId]?.action === 'done').length;
+  const unreviewed = candidates.length - reviewed;
+  const progress = Math.round((reviewed / Math.max(1, candidates.length)) * 100);
+
+  const visible = candidates.filter((result) => {
+    const review = reviews[result.sourceId];
+    if (filter === 'UNREVIEWED') return !review?.ownership;
+    if (filter === 'MINE') return review?.ownership === 'mine';
+    if (filter === 'CLEANUP') return review?.action === 'cleanup';
+    if (filter === 'DONE') return review?.action === 'done';
+    return true;
+  });
+
+  const filters = [
+    ['ALL', 'All', candidates.length],
+    ['UNREVIEWED', 'Unreviewed', unreviewed],
+    ['MINE', 'Mine', mine],
+    ['CLEANUP', 'Clean up', cleanup],
+    ['DONE', 'Done', done],
+  ] as const;
+
+  return (
+    <section className="account-review" aria-label="Account review and cleanup">
+      <div className="account-review-head">
+        <div>
+          <div className="eyebrow">ACCOUNT REVIEW</div>
+          <h3>Decide what is actually yours</h3>
+          <p>Ariadne found the public signals. You decide whether an account is yours and what you want to do with it.</p>
+        </div>
+        <div className="review-local-note">
+          <strong>Saved only in this browser</strong>
+          <span>Your decisions stay on this device and are never sent with a scan.</span>
+        </div>
+      </div>
+
+      <div className="review-progress" aria-label={`${reviewed} of ${candidates.length} account signals reviewed`}>
+        <div>
+          <span>Review progress</span>
+          <strong>{reviewed}/{candidates.length}</strong>
+        </div>
+        <div className="review-progress-track" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+        <div className="review-progress-stats">
+          <span><strong>{mine}</strong> mine</span>
+          <span><strong>{cleanup}</strong> to clean up</span>
+          <span><strong>{done}</strong> done</span>
+        </div>
+      </div>
+
+      <div className="review-toolbar">
+        <div className="review-filters" aria-label="Filter account review">
+          {filters.map(([key, label, count]) => (
+            <button type="button" key={key} className={filter === key ? 'active' : ''} onClick={() => onFilter(key)}>
+              {label} <small>{count}</small>
+            </button>
+          ))}
+        </div>
+        {reviewed > 0 && <button type="button" className="review-clear" onClick={onClear}>Clear local review</button>}
+      </div>
+
+      {visible.length ? (
+        <div className="review-list">
+          {visible.map((result) => {
+            const review = reviews[result.sourceId];
+            const isMine = review?.ownership === 'mine';
+            return (
+              <article className="review-row" key={result.sourceId}>
+                <div className="review-source">
+                  <span className="source-glyph">{result.sourceName.slice(0, 1)}</span>
+                  <div>
+                    <strong>{result.sourceName}{result.nsfw && <span className="nsfw-badge">18+</span>}</strong>
+                    <small>{CATEGORY_LABELS[result.category]} · {statusLabel[result.status]}</small>
+                  </div>
+                  <a href={result.profileUrl} target="_blank" rel="noreferrer">Open profile <span aria-hidden="true">↗</span></a>
+                </div>
+
+                <fieldset className="review-choice">
+                  <legend>Is this yours?</legend>
+                  <div>
+                    {([
+                      ['mine', 'Mine'],
+                      ['not-mine', 'Not mine'],
+                      ['unsure', 'Unsure'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={review?.ownership === value ? 'active' : ''}
+                        aria-pressed={review?.ownership === value}
+                        onClick={() => onOwnership(result.sourceId, value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset className={`review-choice review-action ${isMine ? '' : 'disabled'}`}>
+                  <legend>What next?</legend>
+                  {isMine ? (
+                    <div>
+                      {([
+                        ['keep', 'Keep'],
+                        ['cleanup', 'Clean up'],
+                        ['done', 'Done'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          type="button"
+                          key={value}
+                          className={review?.action === value ? 'active' : ''}
+                          aria-pressed={review?.action === value}
+                          onClick={() => onAction(result.sourceId, value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>Mark this Mine before assigning a cleanup action.</p>
+                  )}
+                </fieldset>
+
+                <div className="review-row-foot">
+                  <span>{result.status === 'FOUND' ? 'The site returned this exact username.' : 'This profile still needs a manual check.'}</span>
+                  {review?.ownership && <button type="button" onClick={() => onReset(result.sourceId)}>Reset</button>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="review-empty">
+          <strong>Nothing in this view.</strong>
+          <span>Try another review filter.</span>
+          <button type="button" className="secondary" onClick={() => onFilter('ALL')}>Show all</button>
+        </div>
+      )}
+
+      <p className="review-footnote">These labels are your own notes about this scan. Ariadne does not infer account ownership from a matching username.</p>
+    </section>
+  );
+}
+
 function ThreadMap({
   data,
   analytics,
