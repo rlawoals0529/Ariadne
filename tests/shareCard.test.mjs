@@ -37,3 +37,23 @@ test('friend share card keeps the ownership caveat and avoids invented scoring',
   assert.doesNotMatch(svg, /risk score|identity score|confidence score/i);
   assert.match(svg, /No shared Found or Maybe sites appeared/);
 });
+
+
+test('long similar handles keep distinguishing suffixes', () => {
+  const six = [
+    'averylongusernameone',
+    'averylongusernametwo',
+    'averylongusernamethree',
+    'averylongusernamefour',
+    'averylongusernamefive',
+    'averylongusernamesix',
+  ].map((query) => ({ query, confirmed: 1, possible: 1, trail: 2, unique: [], categories: [] }));
+
+  const svg = buildFriendShareCardSvg(metrics({ participants: six }));
+  assert.match(svg, /@averylong…eone/);
+  assert.match(svg, /@averylong…etwo/);
+  assert.match(svg, /@averylong…hree/);
+  assert.match(svg, /@averylong…efour/);
+  assert.match(svg, /@averylong…efive/);
+  assert.match(svg, /@averylong…esix/);
+});
