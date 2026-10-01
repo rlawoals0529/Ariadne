@@ -190,8 +190,8 @@ This pass raises the no-credential searchable floor again:
 
 - at least 258 standard public-profile sources;
 - 19 opt-in adult sources;
-- at least 33 direct/exact checks;
-- at least 24 exact adapter definitions;
+- at least 34 direct/exact checks;
+- at least 25 exact adapter definitions;
 - at least 161 extended Sherlock-derived public-profile rules.
 
 ### Exact SourceForge verification
@@ -241,3 +241,14 @@ A new `npm run audit:sources` command compiles the source catalog and reports:
 - catalog provenance.
 
 The audit fails on duplicate IDs/names, non-HTTPS public profile URLs, coverage regression below this pass's floors, or a direct/exact share below 10% of standard sources. CI now runs this audit on every PR and main push.
+
+
+### Gitee exact-source promotion
+
+Gitee is also promoted from a broad profile rule to its documented OpenAPI user endpoint:
+
+- endpoint: `GET https://gitee.com/api/v5/users/{username}`;
+- Gitee documents the access token as optional and the endpoint as requiring no authorization;
+- the returned `UserInfo` model exposes the canonical `login`;
+- Ariadne only returns Found when `login` matches the requested username;
+- HTTP 404 is an exact miss; mismatches and other ambiguous failures remain uncertain.
