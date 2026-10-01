@@ -454,6 +454,16 @@ const entries: Entry[] = [
   { name: 'Note', category: 'media', errorType: 'status_code', url: 'https://note.com/{}' },
   { name: 'Platzi', category: 'developer', errorType: 'status_code', url: 'https://platzi.com/p/{}/' },
   { name: 'Wago Addons', category: 'gaming', errorType: 'status_code', url: 'https://addons.wago.io/user/{}' },
+  { name: 'Avizo', category: 'community', errorType: 'response_url', errorUrl: 'https://www.avizo.cz/', url: 'https://www.avizo.cz/{}/' },
+  { name: 'Bazar.cz', category: 'community', errorType: 'response_url', errorUrl: 'https://www.bazar.cz/error404.aspx', url: 'https://www.bazar.cz/{}/' },
+  { name: 'Cracked', category: 'media', errorType: 'response_url', errorUrl: 'https://www.cracked.com/', url: 'https://www.cracked.com/members/{}/' },
+  { name: 'Football', category: 'community', errorType: 'message', errorMsg: 'Пользователь с таким именем не найден', url: 'https://www.rusfootball.info/user/{}/' },
+  { name: 'HackenProof Hackers', category: 'developer', errorType: 'message', errorMsg: 'Page not found', regex: '^[\\w-]{1,34}$', url: 'https://hackenproof.com/hackers/{}' },
+  { name: 'InterPals', category: 'social', errorType: 'message', errorMsg: 'The requested user does not exist or is inactive', url: 'https://www.interpals.net/{}' },
+  { name: 'OpenNET', category: 'developer', errorType: 'message', errorMsg: 'Имя участника не найдено', regex: '^[^-]*$', url: 'https://www.opennet.ru/~{}' },
+  { name: 'Outgress', category: 'gaming', errorType: 'message', errorMsg: 'Outgress - Error', url: 'https://outgress.com/agents/{}' },
+  { name: 'Valorant Forums', category: 'gaming', errorType: 'message', errorMsg: 'The page you requested could not be found.', url: 'https://valorantforums.com/u/{}' },
+  { name: 'Velomania', category: 'community', errorType: 'message', errorMsg: 'Пользователь не зарегистрирован и не имеет профиля для просмотра.', url: 'https://forum.velomania.ru/member.php?username={}' },
 ];
 
 export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);

@@ -43,10 +43,11 @@ const failures = [];
 if (duplicateIds.length) failures.push(`duplicate source ids: ${[...new Set(duplicateIds)].join(', ')}`);
 if (duplicateNames.length) failures.push(`duplicate selected names: ${[...new Set(duplicateNames)].join(', ')}`);
 if (httpsFailures.length) failures.push(`non-HTTPS profile URLs: ${httpsFailures.map((item) => item.name).join(', ')}`);
-if (stats.standard < 301) failures.push(`standard source count fell below 301 (got ${stats.standard})`);
-if (stats.direct < 57) failures.push(`direct/exact count fell below 57 (got ${stats.direct})`);
-if (extendedCatalogStats.total < 201) failures.push(`extended rule count fell below 201 (got ${extendedCatalogStats.total})`);
-if (directShare < 15) failures.push(`direct/exact share fell below 15% (got ${directShare}%)`);
+if (stats.standard < 329) failures.push(`standard source count fell below 329 (got ${stats.standard})`);
+if (stats.direct < 65) failures.push(`direct/exact count fell below 65 (got ${stats.direct})`);
+if (extendedCatalogStats.total < 224) failures.push(`extended rule count fell below 224 (got ${extendedCatalogStats.total})`);
+if (exactSources.length < 56) failures.push(`exact adapter definitions fell below 56 (got ${exactSources.length})`);
+if (directShare < 19) failures.push(`direct/exact share fell below 19% (got ${directShare}%)`);
 if (extendedCatalogStats.qualityTiers.statusWithBodyEvidence > 100) failures.push(`weak status/body-evidence tier exceeded 100 rules (got ${extendedCatalogStats.qualityTiers.statusWithBodyEvidence})`);
 
 if (failures.length) {

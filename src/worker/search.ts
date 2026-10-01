@@ -40,6 +40,7 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-wicg-forum',
   'catalog-windy',
   'catalog-duolingo',
+  'catalog-freecodecamp',
   'catalog-hugging-face',
   'catalog-gitee',
   'catalog-gitea',
@@ -55,6 +56,7 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-rubygems',
   'catalog-tetr-io',
   'catalog-tryhackme',
+  'catalog-wikipedia',
   'catalog-x-twitter',
 ]);
 

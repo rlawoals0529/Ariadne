@@ -43,10 +43,10 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 318, `expected at least 318 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 62, `expected at least 62 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 53, `expected at least 53 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 214, `expected at least 214 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 329, `expected at least 329 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 65, `expected at least 65 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 56, `expected at least 56 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 224, `expected at least 224 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
@@ -375,6 +375,58 @@ test('third-pass Discourse promotions require canonical usernames', async () => 
       const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
       assert.equal(mismatch.verdict.status, 'UNKNOWN');
     }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('fourth-pass exact adapters require canonical username evidence', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    const wikipedia = exactSources.find((candidate) => candidate.name === 'Wikipedia');
+    assert.ok(wikipedia, 'Wikipedia exact source missing');
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      query: { globalusers: [{ name: 'Ariadne_audit' }] },
+    }), { status: 200 });
+    const wikiFound = await wikipedia.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(wikiFound.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      query: { globalusers: [{ name: 'someone_else' }] },
+    }), { status: 200 });
+    const wikiMismatch = await wikipedia.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(wikiMismatch.verdict.status, 'UNKNOWN');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      query: { globalusers: [{ name: 'Ariadne_audit', missing: '' }] },
+    }), { status: 200 });
+    const wikiMissing = await wikipedia.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(wikiMissing.verdict.status, 'NOT_FOUND');
+
+    const freeCodeCamp = exactSources.find((candidate) => candidate.name === 'freeCodeCamp');
+    assert.ok(freeCodeCamp, 'freeCodeCamp exact source missing');
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: 'ariadne_audit' }), { status: 200 });
+    const fccFound = await freeCodeCamp.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(fccFound.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ result: 'someone_else' }), { status: 200 });
+    const fccMismatch = await freeCodeCamp.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(fccMismatch.verdict.status, 'UNKNOWN');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({}), { status: 404 });
+    const fccMissing = await freeCodeCamp.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(fccMissing.verdict.status, 'NOT_FOUND');
+
+    const signalCommunity = exactSources.find((candidate) => candidate.name === 'Signal Community');
+    assert.ok(signalCommunity, 'Signal Community exact source missing');
+    globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'ariadne_audit' } }), { status: 200 });
+    const signalFound = await signalCommunity.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(signalFound.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'someone_else' } }), { status: 200 });
+    const signalMismatch = await signalCommunity.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(signalMismatch.verdict.status, 'UNKNOWN');
   } finally {
     globalThis.fetch = originalFetch;
   }

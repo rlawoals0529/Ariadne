@@ -559,6 +559,80 @@ export const exactSources: SourceDefinition[] = [
   discourseSource('car-talk-community', 'Car Talk Community', 'community.cartalk.com', 'community'),
   discourseSource('spells8', 'Spells8', 'forum.spells8.com', 'community'),
   {
+    id: 'wikipedia',
+    name: 'Wikipedia',
+    category: 'community',
+    nsfw: false,
+    profileUrl: (u) => `https://meta.wikimedia.org/wiki/Special:CentralAuth/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(
+        `https://meta.wikimedia.org/w/api.php?action=query&list=globalusers&gususers=${encodeURIComponent(u)}&format=json&origin=*`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Wikipedia');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (!response.ok) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u }),
+        };
+      }
+      const data = await response.json().catch(() => null) as {
+        query?: { globalusers?: Array<{ name?: string; missing?: string | boolean }> };
+      } | null;
+      const user = data?.query?.globalusers?.[0];
+      const missing = !user || Object.prototype.hasOwnProperty.call(user, 'missing');
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: missing ? undefined : user?.name,
+          missing,
+        }),
+      };
+    },
+  },
+  {
+    id: 'freecodecamp',
+    name: 'freeCodeCamp',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://www.freecodecamp.org/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(
+        `https://api.freecodecamp.org/api/users/get-public-profile?username=${encodeURIComponent(u)}`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'freeCodeCamp');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }),
+        };
+      }
+      if (response.status === 400) {
+        return {
+          httpStatus: response.status,
+          verdict: blockedVerdict('freeCodeCamp', 'The public profile endpoint rejected this automated request.'),
+        };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { result?: string } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.result }),
+      };
+    },
+  },
+  discourseSource('signal-community', 'Signal Community', 'community.signalusers.org', 'community'),
+  {
     id: 'gnome-vcs',
     name: 'GNOME VCS',
     category: 'developer',

@@ -416,3 +416,57 @@ The cap was **not raised**. Instead, weak or redundant rules were removed and Ca
 - 100 status + body-evidence rules.
 
 The source audit passes at the original 100-rule ceiling.
+
+
+## Fourth coverage + accuracy pass
+
+This pass deliberately prioritizes mainstream exact upgrades and stronger broad evidence instead of increasing the weak-rule allowance.
+
+Final no-credential audit totals:
+
+- 329 standard searchable sources;
+- 19 opt-in adult sources;
+- 65 direct/exact checks, or 19.8% of the standard set;
+- 56 exact adapter definitions;
+- 224 extended public-profile rules;
+- 283 broad/heuristic checks.
+
+### New exact checks
+
+- **Wikipedia** uses Wikimedia CentralAuth's documented global-user query and compares the returned canonical global username.
+- **freeCodeCamp** uses the project's public-profile endpoint and requires the returned `result` username to match. Its current server route explicitly returns 404 when no user exists.
+- **Signal Community** is a public Discourse community and uses Ariadne's existing username-specific Discourse JSON adapter.
+
+The older broad Wikipedia and freeCodeCamp rules are disabled when these exact adapters are selected.
+
+### Stronger broad batch
+
+Ten additional public-profile rules were admitted without adding any generic status-only rule:
+
+- Avizo
+- Bazar.cz
+- Cracked
+- Football / RusFootball profile
+- HackenProof Hackers
+- InterPals
+- OpenNET
+- Outgress
+- Valorant Forums
+- Velomania
+
+These use explicit missing-profile messages, redirects, and/or username validators. They remain Maybe-only on positive evidence.
+
+### Quality budget
+
+The weak `status + body evidence` tier remains exactly 100 rules.
+
+The new broad rules instead increase explicit-negative rules from 65 to 75 and validators from 51 to 53 overall. The direct/exact share rises to 19.8%.
+
+The standalone source audit now enforces the newer coverage and quality floor:
+
+- at least 329 standard sources;
+- at least 65 direct/exact checks;
+- at least 56 exact adapter definitions;
+- at least 224 extended rules;
+- at least 19% direct/exact share;
+- no more than 100 weak status/body-evidence rules.

@@ -211,3 +211,32 @@ Both are handled through Ariadne's existing Discourse exact adapter pattern.
 - Discourse API reference: https://docs.discourse.org/
 - Ariadne requests the username-specific JSON profile endpoint and requires returned `user.username` / `username` equality.
 - 404 is an exact miss; 401/403 stays blocked.
+
+
+## 2026-10-01 fourth exact-source additions
+
+### Wikipedia / Wikimedia global account
+
+- CentralAuth API documentation: https://www.mediawiki.org/wiki/Extension:CentralAuth/API
+- Adapter: `GET https://meta.wikimedia.org/w/api.php?action=query&list=globalusers&gususers={username}&format=json`
+- CentralAuth documents `globalusers` as a read-only lookup for named global users.
+- Ariadne returns Found only when the returned global `name` matches the requested username.
+- An explicit missing marker or empty result is treated as an exact miss.
+
+### freeCodeCamp
+
+- Current public route implementation: https://github.com/freeCodeCamp/freeCodeCamp/blob/main/api/src/routes/public/user.ts
+- Current response schema: https://github.com/freeCodeCamp/freeCodeCamp/blob/main/api/src/schemas/users/get-public-profile.ts
+- Adapter: `GET https://api.freecodecamp.org/api/users/get-public-profile?username={username}`
+- The current route returns `result: user.username` on a successful public profile and HTTP 404 with an empty object for a nonexistent user.
+- Ariadne requires the returned `result` value to match the requested username.
+- A 400 automated-client rejection is treated as Blocked, not No match.
+
+### Signal Community
+
+- Public forum: https://community.signalusers.org/
+- Discourse API reference: https://docs.discourse.org/
+- The site identifies itself as Discourse-powered and Ariadne uses the same exact `/u/{username}.json` verification pattern as its other admitted Discourse communities.
+- The returned canonical username must match before Ariadne returns Found.
+
+This source is intentionally labeled **Signal Community**. It does not inspect Signal messenger usernames, contacts, phone numbers, or private Signal profiles.
