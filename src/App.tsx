@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
+import { getCleanupResources } from './cleanupResources';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import {
   clearAccountReviews,
@@ -992,6 +993,8 @@ function AccountReviewBoard({
           {visible.map((result) => {
             const review = reviews[result.sourceId];
             const isMine = review?.ownership === 'mine';
+            const cleanupResources = getCleanupResources(result.sourceId, result.sourceName);
+            const showCleanupResources = isMine && review?.action === 'cleanup';
             return (
               <article className="review-row" key={result.sourceId}>
                 <div className="review-source">
@@ -1052,6 +1055,41 @@ function AccountReviewBoard({
                     ))}
                   </div>
                 </div>
+
+                {showCleanupResources && cleanupResources && (
+                  <div className="review-resource-panel">
+                    <div className="review-resource-head">
+                      <div>
+                        <span className="eyebrow">OFFICIAL CLEANUP RESOURCES</span>
+                        <strong>{cleanupResources.service}</strong>
+                      </div>
+                      <small>Checked {cleanupResources.checkedAt} · first-party links only</small>
+                    </div>
+                    <div className="review-resource-links">
+                      {cleanupResources.resources.map((resource) => (
+                        <a href={resource.url} target="_blank" rel="noreferrer" key={resource.url}>
+                          <span className={`resource-kind ${resource.kind}`}>{resource.kind === 'delete' ? 'Delete' : resource.kind === 'privacy' ? 'Privacy' : 'Profile'}</span>
+                          <span>
+                            <strong>{resource.label}</strong>
+                            <small>{resource.note}</small>
+                          </span>
+                          <span aria-hidden="true">↗</span>
+                        </a>
+                      ))}
+                    </div>
+                    <p>Ariadne only opens these official pages. It does not sign in, submit forms, or delete anything for you. When you finish on the service, come back and mark this account Done.</p>
+                  </div>
+                )}
+
+                {showCleanupResources && !cleanupResources && (
+                  <div className="review-resource-panel unavailable">
+                    <div>
+                      <span className="eyebrow">CLEANUP RESOURCES</span>
+                      <strong>No curated official guide yet</strong>
+                    </div>
+                    <p>Ariadne will not guess a deletion or privacy URL. Use the profile link above and look for the service’s own account or privacy settings.</p>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -1064,7 +1102,7 @@ function AccountReviewBoard({
         </div>
       )}
 
-      <p className="review-footnote">These labels are your own notes about this scan. Ariadne does not infer account ownership from a matching username.</p>
+      <p className="review-footnote">These labels are your own notes about this scan. Ariadne does not infer account ownership from a matching username. Cleanup links appear only after you mark an account Mine and choose Clean up.</p>
     </section>
   );
 }
