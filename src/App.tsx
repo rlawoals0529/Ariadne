@@ -53,6 +53,13 @@ function friendlyReason(result: SourceResult) {
   }
 }
 
+function compactUsername(value: string, limit = 14) {
+  if (value.length <= limit) return value;
+  const suffixLength = 4;
+  const prefixLength = Math.max(1, limit - suffixLength - 1);
+  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
+}
+
 async function copy(text: string) {
   await navigator.clipboard.writeText(text);
 }
@@ -1073,7 +1080,7 @@ function PartyReport({ reports, metrics, loading, onExport, onShare, onShareCard
                 {metrics.participants.map((participant) => (
                   <div className="overlap-person" key={participant.query} title={`@${participant.query}`}>
                     <span>{participant.query.slice(0, 1).toUpperCase()}</span>
-                    <small>@{participant.query}</small>
+                    <small>@{compactUsername(participant.query)}</small>
                   </div>
                 ))}
               </div>
