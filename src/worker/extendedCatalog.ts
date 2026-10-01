@@ -441,6 +441,19 @@ const entries: Entry[] = [
   { name: 'Terraria Forums', category: 'gaming', errorType: 'message', errorMsg: 'The following members could not be found', url: 'https://forums.terraria.org/index.php?search/42798315/&c[users]={}&o=relevance' },
   { name: 'Tweakers', category: 'community', errorType: 'status_code', url: 'https://tweakers.net/gallery/{}' },
   { name: 'Vero', category: 'social', errorType: 'message', errorMsg: 'Not Found', url: 'https://vero.co/{}' },
+  { name: 'Career.habr', category: 'developer', errorType: 'message', errorMsg: '<h1>Ошибка 404</h1>', url: 'https://career.habr.com/{}' },
+  { name: 'Dealabs', category: 'community', errorType: 'message', errorMsg: 'La page que vous essayez', regex: '[a-z0-9]{4,16}', url: 'https://www.dealabs.com/profile/{}' },
+  { name: 'Genius Artists', category: 'media', errorType: 'status_code', regex: '^[a-zA-Z0-9]{5,50}$', url: 'https://genius.com/artists/{}' },
+  { name: 'Warframe Market', category: 'gaming', errorType: 'status_code', url: 'https://warframe.market/profile/{}', probe: 'https://api.warframe.market/v2/user/{}' },
+  { name: 'Intigriti', category: 'developer', errorType: 'status_code', regex: '[a-z0-9_]{1,25}', url: 'https://app.intigriti.com/profile/{}', probe: 'https://api.intigriti.com/user/public/profile/{}' },
+  { name: 'Itemfix', category: 'media', errorType: 'message', errorMsg: '<title>ItemFix - Channel: </title>', url: 'https://www.itemfix.com/c/{}' },
+  { name: 'Slides', category: 'creative', errorType: 'status_code', url: 'https://slides.com/{}' },
+  { name: 'TRAKTRAIN', category: 'media', errorType: 'status_code', url: 'https://traktrain.com/{}' },
+  { name: 'Trawelling', category: 'social', errorType: 'status_code', url: 'https://traewelling.de/@{}' },
+  { name: 'Habr', category: 'developer', errorType: 'status_code', url: 'https://habr.com/ru/users/{}' },
+  { name: 'Note', category: 'media', errorType: 'status_code', url: 'https://note.com/{}' },
+  { name: 'Platzi', category: 'developer', errorType: 'status_code', url: 'https://platzi.com/p/{}/' },
+  { name: 'Wago Addons', category: 'gaming', errorType: 'status_code', url: 'https://addons.wago.io/user/{}' },
 ];
 
 export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);

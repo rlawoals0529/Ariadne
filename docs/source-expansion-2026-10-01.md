@@ -370,3 +370,49 @@ CI now enforces:
 - no more than 100 rules in the weakest status + body evidence tier.
 
 This makes source quality an explicit regression gate instead of only tracking raw source count.
+
+
+## Third coverage + accuracy pass
+
+This pass starts from the newer source-quality-audited main branch rather than the earlier 245-source snapshot.
+
+Final no-credential audit totals for this pass:
+
+- 318 standard searchable public-profile sources;
+- 19 opt-in adult sources;
+- 62 direct/exact checks, or 19.5% of the standard set;
+- 53 exact adapter definitions;
+- 214 extended Sherlock-derived rules;
+- 275 broad/heuristic checks.
+
+### Exact additions
+
+Three public services move into canonical-identifier checks:
+
+- **GNOME VCS** uses the GNOME GitLab instance's `/api/v4/users?username=` lookup and requires an exact returned `username`.
+- **NotABug.org** uses its Gitea `/api/v1/users/{username}` endpoint and requires the returned `login`.
+- **Freelancer** uses the official Freelancer users endpoint with a username filter and only confirms a result when the returned user object's `username` matches.
+
+Two additional forum rules are promoted from status-only checks to the existing Discourse exact pattern:
+
+- Car Talk Community
+- Spells8
+
+### Curated broad additions retained
+
+The third batch adds or retains public-profile coverage such as Career.habr, Dealabs, Genius Artists, Warframe Market, Intigriti, Itemfix, Slides, TRAKTRAIN, Trawelling, Habr, Note, Platzi, and Wago Addons.
+
+Broad checks remain Maybe-only and still require profile-specific evidence in successful responses.
+
+### Quality-budget enforcement
+
+The first version of this batch pushed the weakest `status + body evidence` tier to 112 rules. Ariadne's source audit caps that tier at 100.
+
+The cap was **not raised**. Instead, weak or redundant rules were removed and Car Talk Community / Spells8 were upgraded to exact Discourse checks. The final audited composition is:
+
+- 12 dedicated-probe rules;
+- 65 explicit-negative rules;
+- 37 status + username-validator rules;
+- 100 status + body-evidence rules.
+
+The source audit passes at the original 100-rule ceiling.
