@@ -149,9 +149,37 @@
   font-size: 8px;
 }
 
+.review-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.review-export,
+.review-clear {
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.review-export {
+  color: var(--found);
+}
+
+.review-export:hover {
+  border-color: var(--found);
+  background: rgba(49, 92, 71, .05);
+}
+
 .review-clear {
   color: var(--thread);
-  white-space: nowrap;
 }
 
 .review-list {
@@ -574,8 +602,8 @@
     display: grid;
   }
 
-  .review-clear {
-    justify-self: start;
+  .review-toolbar-actions {
+    justify-content: flex-start;
   }
 
   .review-row {
