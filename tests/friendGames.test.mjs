@@ -74,3 +74,34 @@ test('unique paths and shared category games are factual scan counts', () => {
   assert.equal(metrics.categoryPair?.topCategory, 'developer');
   assert.equal(metrics.categoryPair?.topCategoryCount, 1);
 });
+
+
+test('shared source details preserve each person\'s Found and Maybe status', () => {
+  const metrics = buildFriendMetrics([
+    report('alice', [
+      result('github', 'GitHub', 'FOUND', 'developer'),
+      result('reddit', 'Reddit', 'POSSIBLE', 'community'),
+    ]),
+    report('bob', [
+      result('github', 'GitHub', 'POSSIBLE', 'developer'),
+      result('reddit', 'Reddit', 'FOUND', 'community'),
+    ]),
+    report('charlie', [
+      result('github', 'GitHub', 'FOUND', 'developer'),
+      result('twitch', 'Twitch', 'FOUND', 'media'),
+    ]),
+  ]);
+
+  assert.equal(metrics.sharedDetails.length, 2);
+  assert.equal(metrics.sharedDetails[0].sourceName, 'GitHub');
+  assert.equal(metrics.sharedDetails[0].participantCount, 3);
+  assert.equal(metrics.sharedDetails[0].foundCount, 2);
+  assert.equal(metrics.sharedDetails[0].possibleCount, 1);
+  assert.deepEqual(metrics.sharedDetails[0].statuses, [
+    { query: 'alice', status: 'FOUND' },
+    { query: 'bob', status: 'POSSIBLE' },
+    { query: 'charlie', status: 'FOUND' },
+  ]);
+  assert.equal(metrics.sharedDetails[1].sourceName, 'Reddit');
+  assert.equal(metrics.sharedDetails[1].participantCount, 2);
+});

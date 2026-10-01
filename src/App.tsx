@@ -53,6 +53,13 @@ function friendlyReason(result: SourceResult) {
   }
 }
 
+function compactUsername(value: string, limit = 14) {
+  if (value.length <= limit) return value;
+  const suffixLength = 4;
+  const prefixLength = Math.max(1, limit - suffixLength - 1);
+  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
+}
+
 async function copy(text: string) {
   await navigator.clipboard.writeText(text);
 }
@@ -961,6 +968,9 @@ function PartyReport({ reports, metrics, loading, onExport, onShare, onShareCard
   const foundTotal = metrics.participants.reduce((sum, participant) => sum + participant.confirmed, 0);
   const maybeTotal = metrics.participants.reduce((sum, participant) => sum + participant.possible, 0);
   const uniqueTotal = metrics.participants.reduce((sum, participant) => sum + participant.unique.length, 0);
+  const overlapRows = metrics.sharedDetails.slice(0, 14);
+  const overlapColumns = `minmax(170px, 1.6fr) repeat(${Math.max(1, metrics.participants.length)}, minmax(72px, .7fr))`;
+  const overlapMinWidth = 190 + metrics.participants.length * 86;
 
   return (
     <section className="results-section party-report">
@@ -1049,13 +1059,56 @@ function PartyReport({ reports, metrics, loading, onExport, onShare, onShareCard
         </div>
       </section>
 
-      <section className="shared-paths">
-        <div>
-          <div className="eyebrow">SITES IN COMMON</div>
-          <h3>Where you overlap</h3>
+      <section className="shared-paths overlap-map" aria-label="Shared public profile paths">
+        <div className="overlap-intro">
+          <div className="eyebrow">SHARED PATHS</div>
+          <h3>Where the paths cross</h3>
           <p className="shared-note">{metrics.verifiedShared.length} were Found for at least two people · {metrics.everyoneSites.length} appeared for everyone completed.</p>
+          <div className="overlap-legend" aria-label="Overlap map legend">
+            <span><i className="overlap-key found">F</i>Found</span>
+            <span><i className="overlap-key maybe">M</i>Maybe</span>
+            <span><i className="overlap-key none">·</i>No signal</span>
+          </div>
+          {metrics.sharedDetails.length > 14 && <p className="overlap-more">Showing 14 of {metrics.sharedDetails.length} shared sites. Rows with more people appear first, then rows with more Found confirmations.</p>}
         </div>
-        {metrics.shared.length ? <div className="path-cloud">{metrics.shared.map((source) => <span key={source}>{source}</span>)}</div> : <p>No shared sites showed up in the completed scans.</p>}
+
+        {overlapRows.length ? (
+          <div className="overlap-scroll" tabIndex={0} aria-label="Scroll shared paths horizontally if needed">
+            <div className="overlap-board" style={{ minWidth: `${overlapMinWidth}px` }}>
+              <div className="overlap-row overlap-head" style={{ gridTemplateColumns: overlapColumns }}>
+                <div className="overlap-source-heading">Public site</div>
+                {metrics.participants.map((participant) => (
+                  <div className="overlap-person" key={participant.query} title={`@${participant.query}`}>
+                    <span>{participant.query.slice(0, 1).toUpperCase()}</span>
+                    <small>@{compactUsername(participant.query)}</small>
+                  </div>
+                ))}
+              </div>
+              {overlapRows.map((source) => (
+                <div className="overlap-row overlap-source-row" style={{ gridTemplateColumns: overlapColumns }} key={source.sourceId}>
+                  <div className="overlap-source-name">
+                    <strong>{source.sourceName}</strong>
+                    <small>{CATEGORY_LABELS[source.category]} · {source.participantCount}/{metrics.participants.length} people</small>
+                  </div>
+                  {metrics.participants.map((participant) => {
+                    const match = source.statuses.find((entry) => entry.query === participant.query);
+                    const verdict = match?.status === 'FOUND' ? 'Found' : match?.status === 'POSSIBLE' ? 'Maybe' : 'No Found or Maybe signal';
+                    return (
+                      <div
+                        className={`overlap-cell ${match?.status === 'FOUND' ? 'found' : match?.status === 'POSSIBLE' ? 'maybe' : 'none'}`}
+                        key={participant.query}
+                        title={`@${participant.query}: ${verdict} on ${source.sourceName}`}
+                        aria-label={`@${participant.query}: ${verdict} on ${source.sourceName}`}
+                      >
+                        <span aria-hidden="true">{match?.status === 'FOUND' ? 'F' : match?.status === 'POSSIBLE' ? 'M' : '·'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <p className="overlap-empty">No shared Found or Maybe sites showed up in the completed scans.</p>}
       </section>
 
       <details className="friend-comparison-details">

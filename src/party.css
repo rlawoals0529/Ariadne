@@ -359,8 +359,7 @@
   font-size: 23px;
 }
 .category-stack { display: flex; flex-wrap: wrap; gap: 5px; }
-.category-stack span,
-.path-cloud span {
+.category-stack span {
   border: 1px solid var(--line);
   background: rgba(255, 253, 248, .5);
   padding: 5px 7px;
@@ -380,23 +379,176 @@
   display: grid;
   grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
   gap: 30px;
+  align-items: start;
   padding: 30px 0;
   border-bottom: 1px solid var(--line);
 }
+.shared-paths > * { min-width: 0; }
 .shared-paths h3 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 25px;
   font-weight: 500;
   margin: 7px 0 0;
 }
-.shared-paths > p { margin: 0; color: var(--muted); }
 .shared-note {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.5;
   margin: 8px 0 0;
 }
-.path-cloud { display: flex; flex-wrap: wrap; align-content: start; gap: 6px; }
+.overlap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 16px;
+}
+.overlap-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.overlap-key,
+.overlap-cell > span {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1;
+}
+.overlap-key.found,
+.overlap-cell.found > span {
+  border-color: var(--found);
+  background: var(--found);
+  color: #fff;
+}
+.overlap-key.maybe,
+.overlap-cell.maybe > span {
+  border-color: var(--possible);
+  color: var(--possible);
+  background: rgba(255, 253, 248, .68);
+}
+.overlap-key.none,
+.overlap-cell.none > span {
+  color: var(--muted);
+  background: transparent;
+}
+.overlap-more {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.overlap-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 248, .45);
+}
+.overlap-scroll:focus-visible {
+  outline: 2px solid var(--thread);
+  outline-offset: 2px;
+}
+.overlap-board { width: 100%; }
+.overlap-row {
+  display: grid;
+  align-items: stretch;
+}
+.overlap-row + .overlap-row { border-top: 1px solid var(--line); }
+.overlap-head {
+  background: var(--paper-deep);
+  min-height: 58px;
+}
+.overlap-source-heading {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--paper-deep);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.overlap-person {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 7px 6px;
+  border-left: 1px solid var(--line);
+}
+.overlap-person > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+}
+.overlap-person > small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 8px;
+}
+.overlap-source-row { min-height: 56px; }
+.overlap-source-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 9px 12px;
+  background: var(--paper);
+}
+.overlap-source-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+.overlap-source-name small {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: capitalize;
+}
+.overlap-cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+}
+.overlap-cell.none { opacity: .6; }
+.overlap-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+}
 
 .friend-comparison-details {
   border-bottom: 1px solid var(--line);
@@ -556,6 +708,9 @@
   }
   .party-person + .party-person { border-top: 1px solid var(--line); }
   .shared-paths { grid-template-columns: 1fr; gap: 14px; padding: 24px 0; }
+  .overlap-scroll { -webkit-overflow-scrolling: touch; }
+  .overlap-source-name { padding-left: 10px; padding-right: 10px; }
+  .overlap-person { padding-left: 4px; padding-right: 4px; }
   .friend-comparison-details > summary {
     grid-template-columns: minmax(0, 1fr) auto;
   }
