@@ -485,3 +485,10 @@
   .party-section-head > span { max-width: none; text-align: left; }
   .party-person dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+
+@media (max-width: 430px) {
+  .party-actions .secondary {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
