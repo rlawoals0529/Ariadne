@@ -138,7 +138,8 @@ function createSource(entry: Entry): SourceDefinition {
     profileUrl: (username) => fill(entry.url, username),
     validate: validator ? (username) => validator!.test(username) : undefined,
     probe: async (username, signal) => {
-      const response = await fetch(fill(entry.probe ?? entry.url, username), {
+      const target = fill(entry.probe ?? entry.url, username);
+      const response = await fetch(target, {
         method: 'GET',
         headers,
         redirect: 'follow',
