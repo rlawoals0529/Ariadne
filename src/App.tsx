@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
+import { buildCleanupChecklistMarkdown, cleanupChecklistFilename } from './cleanupExport';
 import { getCleanupResources } from './cleanupResources';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import {
@@ -950,6 +951,22 @@ function AccountReviewBoard({
     ['DONE', 'Done', done],
   ] as const;
 
+  const exportable = cleanup + done;
+
+  function exportCleanupChecklist() {
+    if (!exportable) return;
+    const markdown = buildCleanupChecklistMarkdown(data, reviews);
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = cleanupChecklistFilename(data.query);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="account-review" aria-label="Account review and cleanup">
       <div className="account-review-head">
@@ -985,7 +1002,10 @@ function AccountReviewBoard({
             </button>
           ))}
         </div>
-        {reviewed > 0 && <button type="button" className="review-clear" onClick={onClear}>Clear local review</button>}
+        <div className="review-toolbar-actions">
+          {exportable > 0 && <button type="button" className="review-export" onClick={exportCleanupChecklist}>Export cleanup list</button>}
+          {reviewed > 0 && <button type="button" className="review-clear" onClick={onClear}>Clear local review</button>}
+        </div>
       </div>
 
       {visible.length ? (
@@ -1102,7 +1122,7 @@ function AccountReviewBoard({
         </div>
       )}
 
-      <p className="review-footnote">These labels are your own notes about this scan. Ariadne does not infer account ownership from a matching username. Cleanup links appear only after you mark an account Mine and choose Clean up.</p>
+      <p className="review-footnote">These labels are your own notes about this scan. Ariadne does not infer account ownership from a matching username. Cleanup links appear only after you mark an account Mine and choose Clean up. Cleanup exports are generated entirely in this browser.</p>
     </section>
   );
 }
