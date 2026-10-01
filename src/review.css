@@ -313,16 +313,6 @@
   background: rgba(245, 240, 231, .5);
 }
 
-.review-action-hint {
-  position: absolute;
-  top: 15px;
-  right: 18px;
-  color: var(--muted);
-  font-size: 8px;
-  line-height: 1;
-  font-weight: 700;
-}
-
 .review-empty {
   display: grid;
   justify-items: start;
@@ -384,10 +374,6 @@
   .review-choice {
     min-height: 82px;
   }
-
-  .review-action-hint {
-    top: 14px;
-  }
 }
 
 @media (max-width: 700px) {
@@ -439,10 +425,6 @@
     border-left: 0;
     border-top: 1px solid var(--line);
   }
-
-  .review-action-hint {
-    right: 15px;
-  }
 }
 
 @media (max-width: 430px) {
@@ -462,10 +444,5 @@
   .review-choice button {
     padding-left: 5px;
     padding-right: 5px;
-  }
-
-  .review-action-hint {
-    position: static;
-    margin-top: -3px;
   }
 }
