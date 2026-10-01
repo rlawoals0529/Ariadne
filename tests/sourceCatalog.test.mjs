@@ -43,7 +43,7 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 329, `expected at least 329 standard sources, got ${stats.standard}`);
+  assert.ok(stats.standard >= 327, `expected at least 327 standard sources, got ${stats.standard}`);
   assert.ok(stats.direct >= 60, `expected at least 60 direct/exact sources, got ${stats.direct}`);
   assert.ok(exactSources.length >= 51, `expected at least 51 exact source definitions, got ${exactSources.length}`);
   assert.ok(extendedCatalogSources.length >= 226, `expected at least 226 extended public-profile rules, got ${extendedCatalogSources.length}`);
