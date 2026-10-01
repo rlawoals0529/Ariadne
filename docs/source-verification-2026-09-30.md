@@ -69,3 +69,38 @@ Ariadne now applies the same standards-based WebFinger verification pattern to M
 - Positive evidence: returned `name` equals the requested username.
 - Negative evidence: HTTP 404.
 - Other failures remain uncertain.
+
+
+## 2026-10-01 second exact-source additions
+
+### TETR.IO
+
+- Official TETRA CHANNEL API: https://tetr.io/about/api/
+- Adapter: `GET https://ch.tetr.io/api/users/{username}`
+- The public API documents `data.username` on the username-specific user endpoint.
+- Ariadne only returns Found when that canonical username matches the requested username.
+- HTTP 404 is treated as an exact miss; other unsuccessful or malformed responses remain uncertain or blocked.
+
+### RubyGems
+
+- Official RubyGems.org API: https://guides.rubygems.org/rubygems-org-api/
+- Adapter: `GET https://rubygems.org/api/v1/profiles/{handle}.json`
+- The official Profile Methods response includes the user's canonical `handle`.
+- Ariadne only returns Found when the returned handle matches the request.
+- HTTP 404 is an exact miss.
+
+### Gravatar
+
+- Official profile endpoint: https://docs.gravatar.com/rest/api-data-specifications/endpoints-references/
+- Adapter: `GET https://api.gravatar.com/v3/profiles/{profileIdentifier}`
+- Gravatar documents profile URL slugs as valid public profile identifiers, a 200 response for a profile, and 404 for no profile.
+- Ariadne extracts the returned `profile_url` slug and requires it to match the requested username before returning Found.
+- Rate limits and server failures remain blocked or uncertain.
+
+### LemmyWorld
+
+- Official Lemmy API reference: https://join-lemmy.org/api/main
+- Adapter: `GET https://lemmy.world/api/v4/person?username={username}`
+- Lemmy documents this person lookup as usable without bearer authentication and accepts a username query.
+- Ariadne requires the returned person's canonical `name` to match the requested username before returning Found.
+- Ariadne only treats an explicit HTTP 404 as an exact miss; other API failures remain uncertain.

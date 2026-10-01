@@ -286,6 +286,117 @@ export const exactSources: SourceDefinition[] = [
     },
   },
   {
+    id: 'tetr-io',
+    name: 'TETR.IO',
+    category: 'gaming',
+    nsfw: false,
+    profileUrl: (u) => `https://ch.tetr.io/u/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://ch.tetr.io/api/users/${encodeURIComponent(u.toLocaleLowerCase())}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'TETR.IO');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { success?: boolean; data?: { username?: string } } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: data?.success ? data.data?.username : undefined,
+        }),
+      };
+    },
+  },
+  {
+    id: 'rubygems',
+    name: 'RubyGems',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://rubygems.org/profiles/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://rubygems.org/api/v1/profiles/${encodeURIComponent(u)}.json`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'RubyGems');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok ? (await response.json().catch(() => null) as { handle?: string } | null) : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.handle }),
+      };
+    },
+  },
+  {
+    id: 'gravatar',
+    name: 'Gravatar',
+    category: 'social',
+    nsfw: false,
+    profileUrl: (u) => `https://gravatar.com/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://api.gravatar.com/v3/profiles/${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Gravatar');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { profile_url?: string } | null)
+        : null;
+      let actual: string | undefined;
+      if (data?.profile_url) {
+        try {
+          const url = new URL(data.profile_url);
+          actual = url.pathname.split('/').filter(Boolean).at(-1);
+        } catch {
+          actual = undefined;
+        }
+      }
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual }),
+      };
+    },
+  },
+  {
+    id: 'lemmy-world',
+    name: 'LemmyWorld',
+    category: 'community',
+    nsfw: false,
+    profileUrl: (u) => `https://lemmy.world/u/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://lemmy.world/api/v4/person?username=${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'LemmyWorld');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as {
+            person_view?: { person?: { name?: string } };
+            person?: { name?: string };
+          } | null)
+        : null;
+      const actual = data?.person_view?.person?.name ?? data?.person?.name;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual }),
+      };
+    },
+  },
+  {
     id: 'mastodon-social',
     name: 'Mastodon.social',
     category: 'social',

@@ -138,3 +138,47 @@ Ariadne now orders eligible sources as:
 This means the strongest evidence appears in the earliest result batches instead of waiting behind hundreds of heuristic pages.
 
 Exact/direct checks keep the existing 4.5 second per-source timeout. Broad catalog checks use a 3.2 second timeout because a slow broad page can only produce Maybe/uncertain evidence anyway. Timeout responses remain Couldn't tell; Ariadne does not convert a timeout into a missing account.
+
+
+## Second coverage + accuracy pass
+
+The follow-up pass expands the no-credential searchable set from 205 to 245 sources:
+
+- 226 standard public-profile sources;
+- 19 opt-in adult sources;
+- 32 direct/exact checks before optional credential-backed integrations;
+- 128 extended Sherlock-derived public-profile rules;
+- roughly 251 distinct registered source names across the worker catalog and exact adapters.
+
+### New exact replacements / additions
+
+The second pass adds exact adapters for:
+
+- TETR.IO — first-party TETRA CHANNEL user API;
+- RubyGems — official profile API;
+- Gravatar — official profile-by-slug API;
+- LemmyWorld — Lemmy's public person lookup.
+
+TETR.IO and RubyGems replace older broad rules. LemmyWorld also replaces its prior broad rule. Gravatar is a new exact-only source.
+
+The exact adapters require canonical identifier equality before returning Found. A 200 response with a different username remains Couldn't tell.
+
+### Second curated broad batch
+
+The broad catalog adds developer/community destinations such as Ask Fedora, Caddy Community, Cloudflare Community, Discuss Elastic, Joplin Forum, Jupyter Community Forum, Nextcloud Forum, n8n Community, Sublime Forum, WICG Forum, GeeksforGeeks, Gradle Plugins, NotABug.org, and LinuxFR.org.
+
+It also adds public gaming/media/creator profiles including NintendoLife, NitroType, Polygon, Sporcle, Star Citizen, VLR, CurseForge, GameFAQs, GameSpot, Giant Bomb, Genius Users, LottieFiles, Playstrategy, Pychess, Slant, Smule, MyDramaList, ThemeForest, and others.
+
+These remain broad rules: a positive is Maybe, generic redirects/empty successes are Couldn't tell, and the search layer does not promote broad missing signals to definitive No match.
+
+### Updated invariants
+
+The source-catalog test suite now requires:
+
+- at least 225 standard sources;
+- at least 32 direct/exact checks;
+- at least 23 exact adapter definitions;
+- at least 128 extended public-profile rules;
+- all 30 entries in the first result batch to be direct/exact checks;
+- canonical-identifier matches for the new exact adapters;
+- canonical-identifier mismatches to remain Couldn't tell.
