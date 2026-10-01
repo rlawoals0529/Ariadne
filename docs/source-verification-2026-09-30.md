@@ -39,3 +39,33 @@ This note records the evidence used for Ariadne's v0.8 exact-source accuracy pas
 ## Admission rule
 
 If any of these endpoints drifts, starts requiring authentication, returns a mismatched identifier, rate-limits Ariadne, or produces an ambiguous response, the adapter must return `UNKNOWN` or `BLOCKED`. The broad catalog duplicate is disabled only while the stronger adapter exists.
+
+
+## 2026-10-01 exact-source additions
+
+### Federated WebFinger sources
+
+Ariadne now applies the same standards-based WebFinger verification pattern to Mastodon.cloud, Mastodon.xyz, mstdn.social, mstdn.io, social.tchncs.de, chaos.social, Fosstodon, Framapiaf, and Pixelfed.social.
+
+- Reference: https://docs.joinmastodon.org/spec/webfinger/
+- Positive evidence: returned `subject` equals the requested `acct:username@host` identifier.
+- Negative evidence: HTTP 404 from that host's WebFinger endpoint.
+- Authentication walls, rate limits, malformed JSON, and subject mismatches do not become Found.
+
+### Mixcloud
+
+- Official API: https://www.mixcloud.com/developers/
+- Username guidance: https://help.mixcloud.com/hc/en-us/articles/10054754875932-FAQ-Usernames
+- Adapter: `GET https://api.mixcloud.com/{username}/`
+- Positive evidence: returned username or API object key resolves to the requested username.
+- Negative evidence: HTTP 404.
+- Public API rate limiting remains Blocked.
+
+### Launchpad
+
+- API overview: https://help.launchpad.net/API
+- REST service docs: https://api.launchpad.net/1.0/
+- Adapter: `GET https://api.launchpad.net/1.0/~{username}`
+- Positive evidence: returned `name` equals the requested username.
+- Negative evidence: HTTP 404.
+- Other failures remain uncertain.
