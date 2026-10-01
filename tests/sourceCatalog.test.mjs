@@ -43,10 +43,10 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 258, `expected at least 258 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 34, `expected at least 34 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 25, `expected at least 25 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 160, `expected at least 160 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 279, `expected at least 279 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 35, `expected at least 35 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 26, `expected at least 26 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 181, `expected at least 181 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
@@ -214,6 +214,51 @@ test('Gitee exact adapter requires the canonical login', async () => {
     globalThis.fetch = async () => new Response(JSON.stringify({}), { status: 404 });
     const missing = await source.probe('ariadne_audit', new AbortController().signal);
     assert.equal(missing.verdict.status, 'NOT_FOUND');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('weak status-only positives need username evidence in the response body', async () => {
+  const source = extendedCatalogSources.find((item) => item.name === 'Coderwall');
+  assert.ok(source, 'Coderwall source missing');
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => {
+      const response = new Response('<html><body>generic profile shell</body></html>', { status: 200 });
+      Object.defineProperty(response, 'url', { value: 'https://coderwall.com/ariadne_audit', configurable: true });
+      return response;
+    };
+    const weak = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(weak.verdict.status, 'UNKNOWN');
+
+    globalThis.fetch = async () => {
+      const response = new Response('<html><body>Profile for ariadne_audit</body></html>', { status: 200 });
+      Object.defineProperty(response, 'url', { value: 'https://coderwall.com/ariadne_audit', configurable: true });
+      return response;
+    };
+    const supported = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(supported.verdict.status, 'POSSIBLE');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Gitea exact adapter requires canonical login evidence', async () => {
+  const source = exactSources.find((candidate) => candidate.name === 'Gitea');
+  assert.ok(source, 'Gitea exact source missing');
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ login: 'ariadne_audit' }), { status: 200 });
+    const found = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(found.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ login: 'someone_else' }), { status: 200 });
+    const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(mismatch.verdict.status, 'UNKNOWN');
   } finally {
     globalThis.fetch = originalFetch;
   }
