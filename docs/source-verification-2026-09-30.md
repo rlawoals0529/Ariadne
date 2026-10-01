@@ -118,3 +118,16 @@ SourceForge's official API documentation includes public user-profile endpoints 
 - Authentication walls, rate limits, server failures, malformed responses, and identifier mismatches do not become Found.
 
 This exact adapter replaces the inherited broad SourceForge page rule rather than running alongside it.
+
+
+## 2026-10-01 Gitee exact-source promotion
+
+Gitee's OpenAPI documentation lists `GET /v5/users/{username}` for retrieving a user, marks the access token optional, and states that no authorization is required. The returned `UserInfo` schema includes the canonical `login` field.
+
+- endpoint: `https://gitee.com/api/v5/users/{username}`
+- positive evidence: returned `login` equals the requested username;
+- HTTP 404: exact miss;
+- identifier mismatch: Couldn't tell;
+- authentication/rate-limit/server failures: blocked or uncertain.
+
+This exact adapter replaces the inherited broad Gitee rule.
