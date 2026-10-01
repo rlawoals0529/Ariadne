@@ -955,7 +955,7 @@ function AccountReviewBoard({
         <div>
           <div className="eyebrow">ACCOUNT REVIEW</div>
           <h3>Decide what is actually yours</h3>
-          <p>Ariadne found the public signals. You decide whether an account is yours and what you want to do with it.</p>
+          <p>Ariadne found the public signals. You decide whether an account is yours and what you want to do with it. Cleanup actions unlock after you mark an account Mine.</p>
         </div>
         <div className="review-local-note">
           <strong>Saved only in this browser</strong>
@@ -1051,7 +1051,6 @@ function AccountReviewBoard({
                       </button>
                     ))}
                   </div>
-                  {!isMine && <small className="review-action-hint">Available after Mine</small>}
                 </div>
               </article>
             );
