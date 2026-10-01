@@ -391,4 +391,12 @@ export const extendedCatalogSources: SourceDefinition[] = entries.map(createSour
 export const extendedCatalogStats = {
   total: entries.length,
   provenance: SNAPSHOT,
+  rules: {
+    statusCode: entries.filter((entry) => entry.errorType === 'status_code').length,
+    message: entries.filter((entry) => entry.errorType === 'message').length,
+    responseUrl: entries.filter((entry) => entry.errorType === 'response_url').length,
+    withProbe: entries.filter((entry) => Boolean(entry.probe)).length,
+    withRegex: entries.filter((entry) => Boolean(entry.regex)).length,
+    statusOnly: entries.filter((entry) => entry.errorType === 'status_code' && !entry.probe && !entry.regex).length,
+  },
 } as const;
