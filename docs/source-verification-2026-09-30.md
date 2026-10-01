@@ -104,3 +104,30 @@ Ariadne now applies the same standards-based WebFinger verification pattern to M
 - Lemmy documents this person lookup as usable without bearer authentication and accepts a username query.
 - Ariadne requires the returned person's canonical `name` to match the requested username before returning Found.
 - Ariadne only treats an explicit HTTP 404 as an exact miss; other API failures remain uncertain.
+
+
+## 2026-10-01 SourceForge exact-source promotion
+
+SourceForge's official API documentation includes public user-profile endpoints and states that unauthenticated requests operate with anonymous-visitor permissions.
+
+- API documentation: https://sourceforge.net/api-docs/
+- Profile endpoint: `GET https://sourceforge.net/rest/u/{username}/profile`
+- Returned identity field: `username`
+- Ariadne requires the returned username to match the requested username before returning Found.
+- HTTP 404 is an exact miss.
+- Authentication walls, rate limits, server failures, malformed responses, and identifier mismatches do not become Found.
+
+This exact adapter replaces the inherited broad SourceForge page rule rather than running alongside it.
+
+
+## 2026-10-01 Gitee exact-source promotion
+
+Gitee's OpenAPI documentation lists `GET /v5/users/{username}` for retrieving a user, marks the access token optional, and states that no authorization is required. The returned `UserInfo` schema includes the canonical `login` field.
+
+- endpoint: `https://gitee.com/api/v5/users/{username}`
+- positive evidence: returned `login` equals the requested username;
+- HTTP 404: exact miss;
+- identifier mismatch: Couldn't tell;
+- authentication/rate-limit/server failures: blocked or uncertain.
+
+This exact adapter replaces the inherited broad Gitee rule.

@@ -397,6 +397,54 @@ export const exactSources: SourceDefinition[] = [
     },
   },
   {
+    id: 'gitee',
+    name: 'Gitee',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://gitee.com/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://gitee.com/api/v5/users/${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Gitee');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { login?: string } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.login }),
+      };
+    },
+  },
+  {
+    id: 'sourceforge',
+    name: 'SourceForge',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://sourceforge.net/u/${encodeURIComponent(u)}/profile/`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://sourceforge.net/rest/u/${encodeURIComponent(u)}/profile`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'SourceForge');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { username?: string } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.username }),
+      };
+    },
+  },
+  {
     id: 'mastodon-social',
     name: 'Mastodon.social',
     category: 'social',

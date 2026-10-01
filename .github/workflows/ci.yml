@@ -18,6 +18,7 @@ jobs:
           node-version: 22
       - run: npm install --ignore-scripts --no-fund
       - run: npm run test
+      - run: npm run audit:sources
       - run: npm run build
       - run: npx wrangler deploy --dry-run
       - name: Dependency audit
