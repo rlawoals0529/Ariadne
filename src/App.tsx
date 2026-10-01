@@ -280,19 +280,29 @@ export default function App() {
     await copy(summaryText);
   }
 
-  async function copyPartyCard() {
+  async function sharePartySummary() {
     const closest = partyMetrics.closestPair;
     const twins = partyMetrics.internetTwins;
     const lines = [
-      'ARIADNE · FRIEND MODE',
-      ...partyMetrics.participants.map((participant) => `@${participant.query}: ${participant.confirmed} found, ${participant.possible} maybe, ${participant.unique.length} only-theirs`),
-      `Sites in common: ${partyMetrics.shared.length}`,
-      `Everyone shares: ${partyMetrics.everyoneSites.length}`,
-      closest ? `Most in common: @${closest.names[0]} + @${closest.names[1]} (${closest.shared} shared)` : 'Most in common: —',
-      twins ? `Internet twins: @${twins.names[0]} + @${twins.names[1]} (${twins.similarity}% overlap in this scan)` : 'Internet twins: —',
-      'Public profile pages only. “Maybe” results still need a quick manual check.',
+      'ARIADNE · FRIEND FOOTPRINT',
+      partyMetrics.participants.map((participant) => `@${participant.query}`).join(' × '),
+      `${partyMetrics.shared.length} public sites appeared for more than one username · ${partyMetrics.verifiedShared.length} were Found for at least two`,
+      ...partyMetrics.participants.map((participant) => `@${participant.query}: ${participant.confirmed} found · ${participant.possible} maybe · ${participant.unique.length} only theirs`),
+      closest ? `Most in common: @${closest.names[0]} + @${closest.names[1]} · ${closest.shared} shared` : 'Most in common: —',
+      twins ? `Internet twins: @${twins.names[0]} + @${twins.names[1]} · ${twins.similarity}% overlap in this scan` : 'Internet twins: —',
+      'Public profile signals only. Maybe results still need a manual check.',
     ];
-    await copy(lines.join('\n'));
+    const summaryText = lines.join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Ariadne · Friend Footprint', text: summaryText });
+        return;
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      }
+    }
+    await copy(summaryText);
   }
 
   const standardCount = sourceStats?.standard;
@@ -490,7 +500,7 @@ export default function App() {
         </section>
       )}
 
-      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onCopy={copyPartyCard} />}
+      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onShare={sharePartySummary} />}
 
       <footer><span>ARIADNE v1.0</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
     </main>
@@ -803,71 +813,115 @@ function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; compl
   );
 }
 
-function PartyReport({ reports, metrics, loading, onExport, onCopy }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onCopy: () => void }) {
+function PartyReport({ reports, metrics, loading, onExport, onShare }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onShare: () => void }) {
   const everyoneLabel = metrics.everyoneSites.length ? `${metrics.everyoneSites.length} ${metrics.everyoneSites.length === 1 ? 'site' : 'sites'}` : 'None yet';
   const everyoneNote = metrics.everyoneSites.length
     ? `${metrics.verifiedEveryoneSites.length} verified for everyone${metrics.everyoneSites.length <= 3 ? ` · ${metrics.everyoneSites.join(', ')}` : ''}`
     : 'No site appeared for every completed friend in this scan';
+  const participantLine = metrics.participants.map((participant) => `@${participant.query}`).join(' × ');
+  const foundTotal = metrics.participants.reduce((sum, participant) => sum + participant.confirmed, 0);
+  const maybeTotal = metrics.participants.reduce((sum, participant) => sum + participant.possible, 0);
+  const uniqueTotal = metrics.participants.reduce((sum, participant) => sum + participant.unique.length, 0);
 
   return (
     <section className="results-section party-report">
-      <div className="result-header">
-        <div><div className="eyebrow">FRIEND MODE</div><h2>{reports.length} people compared</h2><p>{metrics.shared.length} sites showed up for more than one person{loading ? ' · still checking' : ''}</p></div>
-        <div className="party-actions"><button className="secondary" onClick={onCopy}>Copy summary</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
-      </div>
-
-      <div className="friend-games" aria-label="Friend games">
-        <PairGame title="Most in common" pair={metrics.closestPair} note={(pair) => `${pair.shared} shared sites · ${pair.verifiedShared} verified for both`} />
-        <PairGame title="Internet twins" pair={metrics.internetTwins} note={(pair) => `${pair.similarity}% of their found/maybe sites overlap in this scan`} />
-        <PairGame title="Most different" pair={metrics.mostDifferentPair} note={(pair) => `${pair.similarity}% overlap · ${pair.shared} shared sites`} />
-        <PairGame title="Same corner" pair={metrics.categoryPair} note={(pair) => pair.topCategory ? `${pair.topCategoryCount} shared ${pair.topCategory} ${pair.topCategoryCount === 1 ? 'site' : 'sites'}` : 'No shared category yet'} />
-        <FriendGame title="Most one-of-a-kind" value={metrics.mostUnique.map((name) => `@${name}`).join(' · ') || '—'} note="Most sites that did not show up for another friend" />
-        <FriendGame title="Everyone’s here" value={everyoneLabel} note={everyoneNote} />
-      </div>
-
-      <div className="friend-signal-chart" aria-label="Friend signal comparison">
-        <div className="friend-chart-head">
-          <div><div className="eyebrow">COMPARISON ANALYTICS</div><h3>Verified vs. possible signals</h3></div>
-          <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
+      <div className="party-toolbar">
+        <div>
+          <div className="eyebrow">FRIEND REPORT</div>
+          <p>{reports.length} completed ${reports.length === 1 ? 'scan' : 'scans'}{loading ? ' · still checking' : ''}</p>
         </div>
-        <div className="friend-bars">
-          {metrics.participants.map((participant) => {
-            const maxTrail = Math.max(1, ...metrics.participants.map((item) => item.trail));
-            return (
-              <div className="friend-bar-row" key={participant.query}>
-                <strong>@{participant.query}</strong>
-                <div className="friend-bar-track" aria-hidden="true">
-                  <span className="friend-found" style={{ width: `${(participant.confirmed / maxTrail) * 100}%` }} />
-                  <span className="friend-maybe" style={{ width: `${(participant.possible / maxTrail) * 100}%` }} />
-                </div>
-                <small>{participant.confirmed} found · {participant.possible} maybe</small>
+        <div className="party-actions"><button className="secondary" onClick={onShare}>Share snapshot</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
+      </div>
+
+      <section className="friend-report-hero" aria-label="Friend footprint summary">
+        <div className="friend-report-main">
+          <div className="eyebrow">FRIEND FOOTPRINT</div>
+          <h2>{participantLine}</h2>
+          <p className="friend-report-story">
+            Across {reports.length} completed username{reports.length === 1 ? '' : 's'}, <strong>{metrics.shared.length} public site{metrics.shared.length === 1 ? '' : 's'}</strong> appeared for more than one person. <strong>{metrics.verifiedShared.length}</strong> of those were Found for at least two.
+          </p>
+          <p className="friend-report-note">This compares public profile signals from this scan. Shared usernames do not prove the accounts belong to the same people.</p>
+        </div>
+        <div className="friend-report-stats">
+          <div><span>People</span><strong>{reports.length}</strong><small>completed scans</small></div>
+          <div><span>Shared</span><strong>{metrics.shared.length}</strong><small>Found or Maybe for 2+</small></div>
+          <div><span>Everyone</span><strong>{metrics.everyoneSites.length}</strong><small>appeared for all completed</small></div>
+        </div>
+      </section>
+
+      <section className="friend-takes" aria-label="Friend comparison quick takes">
+        <div className="party-section-head">
+          <div><div className="eyebrow">QUICK TAKES</div><h3>What stood out</h3></div>
+          <span>{foundTotal} Found · {maybeTotal} Maybe · {uniqueTotal} one-person signals</span>
+        </div>
+        <div className="friend-games">
+          <PairGame title="Most in common" pair={metrics.closestPair} note={(pair) => `${pair.shared} shared sites · ${pair.verifiedShared} Found for both`} />
+          <PairGame title="Internet twins" pair={metrics.internetTwins} note={(pair) => `${pair.similarity}% of their Found/Maybe sites overlap in this scan`} />
+          <PairGame title="Most different" pair={metrics.mostDifferentPair} note={(pair) => `${pair.similarity}% overlap · ${pair.shared} shared sites`} />
+          <PairGame title="Same corner" pair={metrics.categoryPair} note={(pair) => pair.topCategory ? `${pair.topCategoryCount} shared ${pair.topCategory} ${pair.topCategoryCount === 1 ? 'site' : 'sites'}` : 'No shared category yet'} />
+          <FriendGame title="Most one-of-a-kind" value={metrics.mostUnique.map((name) => `@${name}`).join(' · ') || '—'} note="Most Found/Maybe sites that did not appear for another friend" />
+          <FriendGame title="Everyone’s here" value={everyoneLabel} note={everyoneNote} />
+        </div>
+      </section>
+
+      <section className="party-people">
+        <div className="party-section-head">
+          <div><div className="eyebrow">SIDE BY SIDE</div><h3>Each public footprint</h3></div>
+          <span>Found stays separate from Maybe</span>
+        </div>
+        <div className="party-scoreboard">
+          {metrics.participants.map((participant) => (
+            <article key={participant.query} className="party-person">
+              <div className="party-person-head">
+                <span className="source-glyph">{participant.query.slice(0, 1).toUpperCase()}</span>
+                <div><strong>@{participant.query}</strong><small>{participant.trail} Found or Maybe signals</small></div>
               </div>
-            );
-          })}
+              <dl><div><dt>Found</dt><dd>{participant.confirmed}</dd></div><div><dt>Maybe</dt><dd>{participant.possible}</dd></div><div><dt>Only theirs</dt><dd>{participant.unique.length}</dd></div></dl>
+              <div className="category-stack">{participant.categories.slice(0, 5).map(([category, count]) => <span key={category}>{category} {count}</span>)}</div>
+              {participant.unique.length > 0 && <p className="party-unique"><span>Only theirs:</span> {participant.unique.slice(0, 6).join(', ')}{participant.unique.length > 6 ? ` +${participant.unique.length - 6}` : ''}</p>}
+            </article>
+          ))}
         </div>
-      </div>
+      </section>
 
-      <div className="party-scoreboard">
-        {metrics.participants.map((participant) => (
-          <article key={participant.query} className="party-person">
-            <div className="party-person-head"><div><span className="source-glyph">{participant.query.slice(0, 1).toUpperCase()}</span></div><div><strong>@{participant.query}</strong><small>{participant.trail} found or maybe</small></div></div>
-            <dl><div><dt>Found</dt><dd>{participant.confirmed}</dd></div><div><dt>Maybe</dt><dd>{participant.possible}</dd></div><div><dt>Only theirs</dt><dd>{participant.unique.length}</dd></div></dl>
-            <div className="category-stack">{participant.categories.slice(0, 5).map(([category, count]) => <span key={category}>{category} {count}</span>)}</div>
-            {participant.unique.length > 0 && <p className="party-unique"><span>Only theirs:</span> {participant.unique.slice(0, 6).join(', ')}{participant.unique.length > 6 ? ` +${participant.unique.length - 6}` : ''}</p>}
-          </article>
-        ))}
-      </div>
-
-      <div className="shared-paths">
+      <section className="shared-paths">
         <div>
           <div className="eyebrow">SITES IN COMMON</div>
           <h3>Where you overlap</h3>
-          <p className="shared-note">{metrics.verifiedShared.length} were verified for at least two people · {metrics.everyoneSites.length} appeared for everyone completed.</p>
+          <p className="shared-note">{metrics.verifiedShared.length} were Found for at least two people · {metrics.everyoneSites.length} appeared for everyone completed.</p>
         </div>
         {metrics.shared.length ? <div className="path-cloud">{metrics.shared.map((source) => <span key={source}>{source}</span>)}</div> : <p>No shared sites showed up in the completed scans.</p>}
-      </div>
+      </section>
 
-      <p className="party-disclaimer">Friend mode only compares what this scan saw on public profile pages. A “Maybe” result still needs a quick manual check, so the friend-game cards are for fun rather than identity proof.</p>
+      <details className="friend-comparison-details">
+        <summary>
+          <span><span className="eyebrow">COMPARISON DETAILS</span><strong>Found vs. Maybe by person</strong></span>
+          <small>{metrics.participants.length} people</small>
+        </summary>
+        <div className="friend-signal-chart" aria-label="Friend signal comparison">
+          <div className="friend-chart-head">
+            <div><h3>Signal mix</h3><p>Counts from this comparison only.</p></div>
+            <div className="chart-legend" aria-label="Chart legend"><span><i className="legend-found" />Found</span><span><i className="legend-maybe" />Maybe</span></div>
+          </div>
+          <div className="friend-bars">
+            {metrics.participants.map((participant) => {
+              const maxTrail = Math.max(1, ...metrics.participants.map((item) => item.trail));
+              return (
+                <div className="friend-bar-row" key={participant.query}>
+                  <strong>@{participant.query}</strong>
+                  <div className="friend-bar-track" aria-hidden="true">
+                    <span className="friend-found" style={{ width: `${(participant.confirmed / maxTrail) * 100}%` }} />
+                    <span className="friend-maybe" style={{ width: `${(participant.possible / maxTrail) * 100}%` }} />
+                  </div>
+                  <small>{participant.confirmed} found · {participant.possible} maybe</small>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </details>
+
+      <p className="party-disclaimer">Friend Mode only compares public profile signals from this scan. A Maybe result still needs a manual check, and none of these comparisons prove identity or account ownership.</p>
     </section>
   );
 }
@@ -878,7 +932,7 @@ function PairGame({ title, pair, note }: { title: string; pair: FriendPair | nul
 }
 
 function FriendGame({ title, value, note }: { title: string; value: string; note: string }) {
-  return <article><span>{title}</span><strong>{value}</strong><small>{note}</small></article>;
+  return <article className="friend-game"><span>{title}</span><strong>{value}</strong><small>{note}</small></article>;
 }
 
 function ResultCard({ result }: { result: SourceResult }) {
