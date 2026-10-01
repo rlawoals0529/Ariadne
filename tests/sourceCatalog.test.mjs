@@ -43,10 +43,10 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 301, `expected at least 301 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 57, `expected at least 57 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 48, `expected at least 48 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 201, `expected at least 201 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 329, `expected at least 329 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 60, `expected at least 60 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 51, `expected at least 51 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 226, `expected at least 226 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
@@ -304,6 +304,56 @@ test('programming.dev exact adapter requires canonical Lemmy person name', async
     globalThis.fetch = async () => new Response(JSON.stringify({ person_view: { person: { name: 'someone_else' } } }), { status: 200 });
     const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
     assert.equal(mismatch.verdict.status, 'UNKNOWN');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('third-pass exact adapters require canonical username evidence', async () => {
+  const originalFetch = globalThis.fetch;
+  const cases = [
+    {
+      name: 'GNOME VCS',
+      found: [{ username: 'ariadne_audit' }],
+      mismatch: [{ username: 'someone_else' }],
+      missing: [],
+    },
+    {
+      name: 'NotABug.org',
+      found: { login: 'ariadne_audit' },
+      mismatch: { login: 'someone_else' },
+      missingStatus: 404,
+    },
+    {
+      name: 'Freelancer',
+      found: { result: { users: { '1': { username: 'ariadne_audit' } } } },
+      mismatch: { result: { users: { '1': { username: 'someone_else' } } } },
+      missing: { result: { users: {} } },
+    },
+  ];
+
+  try {
+    for (const item of cases) {
+      const source = exactSources.find((candidate) => candidate.name === item.name);
+      assert.ok(source, `${item.name} exact source missing`);
+
+      globalThis.fetch = async () => new Response(JSON.stringify(item.found), { status: 200 });
+      const found = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(found.verdict.status, 'FOUND', `${item.name} should accept its canonical username`);
+
+      globalThis.fetch = async () => new Response(JSON.stringify(item.mismatch), { status: 200 });
+      const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(mismatch.verdict.status, 'UNKNOWN', `${item.name} must reject a mismatched identifier`);
+
+      if ('missingStatus' in item) {
+        globalThis.fetch = async () => new Response(JSON.stringify({}), { status: item.missingStatus });
+      } else {
+        globalThis.fetch = async () => new Response(JSON.stringify(item.missing), { status: 200 });
+      }
+      const missing = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(missing.verdict.status, 'NOT_FOUND', `${item.name} should recognize an explicit empty/missing response`);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }
