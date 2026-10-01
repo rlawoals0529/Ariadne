@@ -85,8 +85,11 @@ async function prepare(page, label) {
   });
 }
 
+let navigationId = 0;
+
 async function openSoloScan(page, query) {
-  await page.goto(url + '/#setup?mode=solo&u=' + encodeURIComponent(query), { waitUntil:'networkidle' });
+  navigationId += 1;
+  await page.goto(url + '/?qa=' + navigationId + '#setup?mode=solo&u=' + encodeURIComponent(query), { waitUntil:'networkidle' });
   if (await page.locator('.profile-summary').count()) errors.push('shared setup auto-ran a scan');
   await page.getByRole('button', { name:'Search', exact:true }).click();
   await page.locator('.account-review').waitFor({ state:'visible', timeout:15000 });
