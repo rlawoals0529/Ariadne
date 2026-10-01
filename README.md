@@ -12,7 +12,7 @@ The result is an evidence report, not a row of green and red guesses.
 - **Broad checks** cover more of the web, but a plausible page is only **Maybe** and a weak missing signal is **Couldn’t tell**.
 - **The report shows its own limits**: scan coverage, exact resolution, verified share, uncertainty, response-time distribution, an evidence funnel, and category footprint.
 - **Compare Friends** checks 2–6 usernames and keeps Found separate from Maybe while calculating overlap from the current scan.
-- Searches and comparisons are not stored by Ariadne.
+- Searches and comparisons are not stored server-side by Ariadne. Optional Account Review decisions are stored only in the user's browser.
 
 That caution is the point. A false positive wastes your time, while a false negative can hide the account you were trying to find.
 
@@ -92,6 +92,6 @@ See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Sherlock license 
 
 ## Safety boundary
 
-Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Searches and friend comparisons are not stored.
+Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Searches and friend comparisons are not stored server-side. Optional Account Review decisions stay in the user's browser localStorage and are never sent with a scan.
 
 See [`docs/architecture.md`](docs/architecture.md) for source-admission and evidence rules and [`SECURITY.md`](SECURITY.md) for security boundaries.
