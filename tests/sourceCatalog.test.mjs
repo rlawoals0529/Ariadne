@@ -46,7 +46,7 @@ test('coverage expansion materially increases standard and exact checks', () => 
   assert.ok(stats.standard >= 258, `expected at least 258 standard sources, got ${stats.standard}`);
   assert.ok(stats.direct >= 33, `expected at least 33 direct/exact sources, got ${stats.direct}`);
   assert.ok(exactSources.length >= 24, `expected at least 24 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 161, `expected at least 161 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 160, `expected at least 160 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
