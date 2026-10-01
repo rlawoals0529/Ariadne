@@ -470,7 +470,7 @@ export default function App() {
           <div className="hero-stats" aria-label="Ariadne coverage">
             <span><strong>{sourceStats?.standard ?? '—'}</strong> public sites</span>
             <span><strong>{sourceStats?.direct ?? '—'}</strong> exact checks</span>
-            <span><strong>0</strong> searches stored</span>
+            <span><strong>0</strong> server-side scans stored</span>
           </div>
         </div>
 
@@ -674,7 +674,7 @@ function SourceMeta({ standardCount, nsfwCount, directCount }: { standardCount?:
       <span>{standardCount ? `${standardCount} public sites` : 'Wide public-site search'}</span>
       <span>{nsfwCount ? `${nsfwCount} optional adult sites` : 'Adult sites are optional'}</span>
       {directCount !== undefined && <span>{directCount} sites can verify the exact username</span>}
-      <span>Nothing saved</span>
+      <span>Scans not stored</span>
     </div>
   );
 }
