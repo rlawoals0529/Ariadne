@@ -246,103 +246,33 @@ const entries: Entry[] = [
   { name: 'BuzzFeed', category: 'media', errorType: 'status_code', url: 'https://buzzfeed.com/{}' },
   { name: 'Cfx.re Forum', category: 'gaming', errorType: 'status_code', url: 'https://forum.cfx.re/u/{}/summary' },
   { name: 'Pinterest', category: 'creative', errorType: 'status_code', url: 'https://www.pinterest.com/{}/', probe: 'https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/{}/' },
-  { name: 'CGTrader', category: 'creative', errorType: 'status_code', regex: '^[^.]*?
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://www.cgtrader.com/{}' },
-  { name: 'Carbonmade', category: 'creative', errorType: 'response_url', errorUrl: 'https://carbonmade.com/fourohfour?domain={}.carbonmade.com', regex: '^[\\w@-]+?
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://{}.carbonmade.com' },
+  { name: 'CGTrader', category: 'creative', errorType: 'status_code', regex: '^[^.]*?$', url: 'https://www.cgtrader.com/{}' },
+  { name: 'Carbonmade', category: 'creative', errorType: 'response_url', errorUrl: 'https://carbonmade.com/fourohfour?domain={}.carbonmade.com', regex: '^[\\w@-]+?$', url: 'https://{}.carbonmade.com' },
   { name: 'CodeChef', category: 'developer', errorType: 'response_url', errorUrl: 'https://www.codechef.com/', url: 'https://www.codechef.com/users/{}' },
-  { name: 'CodeSandbox', category: 'developer', errorType: 'message', errorMsg: 'Could not find user with username', regex: '^[a-zA-Z0-9_-]{3,30}
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://codesandbox.io/u/{}', probe: 'https://codesandbox.io/api/v1/users/{}' },
+  { name: 'CodeSandbox', category: 'developer', errorType: 'message', errorMsg: 'Could not find user with username', regex: '^[a-zA-Z0-9_-]{3,30}$', url: 'https://codesandbox.io/u/{}', probe: 'https://codesandbox.io/api/v1/users/{}' },
   { name: 'Coderwall', category: 'developer', errorType: 'status_code', url: 'https://coderwall.com/{}' },
-  { name: 'Crowdin', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z0-9._-]{2,255}
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://crowdin.com/profile/{}' },
+  { name: 'Crowdin', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z0-9._-]{2,255}$', url: 'https://crowdin.com/profile/{}' },
   { name: 'Credly', category: 'developer', errorType: 'status_code', url: 'https://www.credly.com/users/{}' },
   { name: 'Cults3D', category: 'creative', errorType: 'message', errorMsg: 'Oh dear, this page is not working!', url: 'https://cults3d.com/en/users/{}/creations' },
   { name: 'DailyMotion', category: 'media', errorType: 'status_code', url: 'https://www.dailymotion.com/{}' },
   { name: 'Disqus', category: 'community', errorType: 'status_code', url: 'https://disqus.com/{}' },
   { name: 'DMOJ', category: 'developer', errorType: 'message', errorMsg: 'No such user', url: 'https://dmoj.ca/user/{}' },
   { name: 'EyeEm', category: 'creative', errorType: 'status_code', url: 'https://www.eyeem.com/u/{}' },
-  { name: 'Flightradar24', category: 'community', errorType: 'status_code', regex: '^[a-zA-Z0-9_]{3,20}
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://my.flightradar24.com/{}' },
-  { name: 'Flipboard', category: 'media', errorType: 'status_code', regex: '^([a-zA-Z0-9_]){1,15}
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://flipboard.com/@{}' },
+  { name: 'Flightradar24', category: 'community', errorType: 'status_code', regex: '^[a-zA-Z0-9_]{3,20}$', url: 'https://my.flightradar24.com/{}' },
+  { name: 'Flipboard', category: 'media', errorType: 'status_code', regex: '^([a-zA-Z0-9_]){1,15}$', url: 'https://flipboard.com/@{}' },
   { name: 'Giphy', category: 'media', errorType: 'message', errorMsg: '<title> GIFs - Find &amp; Share on GIPHY</title>', url: 'https://giphy.com/{}' },
   { name: 'Gitee', category: 'developer', errorType: 'status_code', url: 'https://gitee.com/{}' },
-  { name: 'GitBook', category: 'developer', errorType: 'status_code', regex: '^[\\w@-]+?
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://{}.gitbook.io/' },
-  { name: 'Gumroad', category: 'creative', errorType: 'message', errorMsg: 'Page not found (404) - Gumroad', regex: '^[^.]*?
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://www.gumroad.com/{}' },
+  { name: 'GitBook', category: 'developer', errorType: 'status_code', regex: '^[\\w@-]+?$', url: 'https://{}.gitbook.io/' },
+  { name: 'Gumroad', category: 'creative', errorType: 'message', errorMsg: 'Page not found (404) - Gumroad', regex: '^[^.]*?$', url: 'https://www.gumroad.com/{}' },
   { name: 'HackerEarth', category: 'developer', errorType: 'status_code', url: 'https://hackerearth.com/@{}' },
   { name: 'hackster', category: 'developer', errorType: 'status_code', url: 'https://www.hackster.io/{}' },
   { name: 'Instructables', category: 'creative', errorType: 'status_code', url: 'https://www.instructables.com/member/{}' },
-  { name: 'Kongregate', category: 'gaming', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]*
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://www.kongregate.com/accounts/{}' },
+  { name: 'Kongregate', category: 'gaming', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]*$', url: 'https://www.kongregate.com/accounts/{}' },
   { name: 'LemmyWorld', category: 'community', errorType: 'message', errorMsg: '<h1>Error!</h1>', url: 'https://lemmy.world/u/{}' },
   { name: 'Lobsters', category: 'developer', errorType: 'status_code', regex: '[A-Za-z0-9][A-Za-z0-9_-]{0,24}', url: 'https://lobste.rs/u/{}' },
   { name: 'MuseScore', category: 'creative', errorType: 'status_code', url: 'https://musescore.com/{}' },
   { name: 'MyMiniFactory', category: 'creative', errorType: 'status_code', url: 'https://www.myminifactory.com/users/{}' },
-  { name: 'Newgrounds', category: 'creative', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]*
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://{}.newgrounds.com' },
+  { name: 'Newgrounds', category: 'creative', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]*$', url: 'https://{}.newgrounds.com' },
   { name: 'ObservableHQ', category: 'developer', errorType: 'message', errorMsg: 'Page not found', url: 'https://observablehq.com/@{}' },
   { name: 'Odysee', category: 'media', errorType: 'message', errorMsg: '<link rel="canonical" content="odysee.com"/>', url: 'https://odysee.com/@{}' },
   { name: 'Open Collective', category: 'community', errorType: 'status_code', url: 'https://opencollective.com/{}' },
@@ -356,36 +286,15 @@ export const extendedCatalogStats = {
   { name: 'Redbubble', category: 'creative', errorType: 'status_code', url: 'https://www.redbubble.com/people/{}' },
   { name: 'ResearchGate', category: 'community', errorType: 'response_url', errorUrl: 'https://www.researchgate.net/directory/profiles', regex: '\\w+_\\w+', url: 'https://www.researchgate.net/profile/{}' },
   { name: 'ReverbNation', category: 'media', errorType: 'message', errorMsg: "Sorry, we couldn't find that page", url: 'https://www.reverbnation.com/{}' },
-  { name: 'RubyGems', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]{1,40}', url: 'https://rubygems.org/profiles/{}' },
-  { name: 'RuneScape', category: 'gaming', errorType: 'message', errorMsg: '{"error":"NO_PROFILE","loggedIn":"false"}', regex: '^(?! )[\\w -]{1,12}(?<! )
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://apps.runescape.com/runemetrics/app/overview/player/{}', probe: 'https://apps.runescape.com/runemetrics/profile/profile?user={}' },
+  { name: 'RubyGems', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z][a-zA-Z0-9_-]{1,40}$', url: 'https://rubygems.org/profiles/{}' },
+  { name: 'RuneScape', category: 'gaming', errorType: 'message', errorMsg: '{"error":"NO_PROFILE","loggedIn":"false"}', regex: '^(?! )[\\w -]{1,12}(?<! )$', url: 'https://apps.runescape.com/runemetrics/app/overview/player/{}', probe: 'https://apps.runescape.com/runemetrics/profile/profile?user={}' },
   { name: 'Scribd', category: 'media', errorType: 'message', errorMsg: 'Page not found', url: 'https://www.scribd.com/{}' },
   { name: 'SlideShare', category: 'media', errorType: 'message', errorMsg: '<title>Page no longer exists</title>', url: 'https://slideshare.net/{}' },
-  { name: 'SmugMug', category: 'creative', errorType: 'status_code', regex: '^[a-zA-Z]{1,35}
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://{}.smugmug.com' },
+  { name: 'SmugMug', category: 'creative', errorType: 'status_code', regex: '^[a-zA-Z]{1,35}$', url: 'https://{}.smugmug.com' },
   { name: 'SpaceHey', category: 'social', errorType: 'message', errorMsg: 'Not Found (Error 404) | SpaceHey', url: 'https://spacehey.com/{}' },
   { name: 'SpeakerDeck', category: 'creative', errorType: 'status_code', url: 'https://speakerdeck.com/{}' },
   { name: 'Splice', category: 'media', errorType: 'status_code', url: 'https://splice.com/{}' },
-  { name: 'Splits.io', category: 'gaming', errorType: 'status_code', regex: '^[^.]*?
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://splits.io/users/{}' },
+  { name: 'Splits.io', category: 'gaming', errorType: 'status_code', regex: '^[^.]*?$', url: 'https://splits.io/users/{}' },
   { name: 'Status Cafe', category: 'social', errorType: 'message', errorMsg: 'Page Not Found', url: 'https://status.cafe/users/{}' },
   { name: 'TETR.IO', category: 'gaming', errorType: 'message', errorMsg: 'No such user!', url: 'https://ch.tetr.io/u/{}', probe: 'https://ch.tetr.io/api/users/{}' },
   { name: 'TheMovieDB', category: 'media', errorType: 'status_code', url: 'https://www.themoviedb.org/u/{}' },
@@ -396,14 +305,7 @@ export const extendedCatalogStats = {
   { name: 'Ultimate-Guitar', category: 'media', errorType: 'status_code', url: 'https://ultimate-guitar.com/u/{}' },
   { name: 'Untappd', category: 'social', errorType: 'status_code', url: 'https://untappd.com/user/{}' },
   { name: 'VirusTotal', category: 'developer', errorType: 'status_code', url: 'https://www.virustotal.com/gui/user/{}' },
-  { name: 'WordPress', category: 'media', errorType: 'response_url', errorUrl: 'wordpress.com/typo/?subdomain=', regex: '^[a-zA-Z][a-zA-Z0-9_-]*
-
-export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
-export const extendedCatalogStats = {
-  total: entries.length,
-  provenance: SNAPSHOT,
-} as const;
-, url: 'https://{}.wordpress.com/' },
+  { name: 'WordPress', category: 'media', errorType: 'response_url', errorUrl: 'wordpress.com/typo/?subdomain=', regex: '^[a-zA-Z][a-zA-Z0-9_-]*$', url: 'https://{}.wordpress.com/' },
   { name: 'WordPress.org', category: 'community', errorType: 'response_url', errorUrl: 'https://wordpress.org', url: 'https://profiles.wordpress.org/{}/' },
   { name: 'devRant', category: 'developer', errorType: 'response_url', errorUrl: 'https://devrant.com/', url: 'https://devrant.com/users/{}' },
   { name: 'geocaching', category: 'community', errorType: 'status_code', url: 'https://www.geocaching.com/p/default.aspx?u={}' },
