@@ -309,7 +309,7 @@
 
 .review-choice button:disabled {
   cursor: not-allowed;
-  opacity: .42;
+  opacity: .55;
   background: rgba(245, 240, 231, .5);
 }
 
@@ -354,7 +354,7 @@
   line-height: 1.5;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   .account-review-head {
     grid-template-columns: 1fr;
     gap: 16px;
