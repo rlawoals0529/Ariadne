@@ -43,17 +43,17 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 185, `expected at least 185 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 28, `expected at least 28 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 19, `expected at least 19 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 89, `expected at least 89 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 225, `expected at least 225 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 32, `expected at least 32 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 23, `expected at least 23 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 128, `expected at least 128 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
   const selected = selectSources(false, {});
   const firstThirty = selected.slice(0, 30);
   const directFirst = firstThirty.filter((source) => !source.id.startsWith('catalog-')).length;
-  assert.ok(directFirst >= 28, `expected direct checks first, got only ${directFirst} direct sources in the first 30`);
+  assert.equal(directFirst, 30, `expected the first result batch to be entirely direct checks, got ${directFirst} direct sources`);
 });
 
 test('broad status-code sources do not treat generic redirects as a possible match', async () => {
@@ -111,6 +111,63 @@ test('ordinary broad positives remain Maybe rather than Found', async () => {
   try {
     const checked = await source.probe('ariadne_audit', new AbortController().signal);
     assert.equal(checked.verdict.status, 'POSSIBLE');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('new exact adapters require canonical username evidence', async () => {
+  const cases = [
+    {
+      name: 'TETR.IO',
+      response: () => new Response(JSON.stringify({ success: true, data: { username: 'ariadne_audit' } }), { status: 200 }),
+    },
+    {
+      name: 'RubyGems',
+      response: () => new Response(JSON.stringify({ handle: 'ariadne_audit' }), { status: 200 }),
+    },
+    {
+      name: 'Gravatar',
+      response: () => new Response(JSON.stringify({ profile_url: 'https://gravatar.com/ariadne_audit' }), { status: 200 }),
+    },
+    {
+      name: 'LemmyWorld',
+      response: () => new Response(JSON.stringify({ person_view: { person: { name: 'ariadne_audit' } } }), { status: 200 }),
+    },
+  ];
+
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const item of cases) {
+      const source = exactSources.find((candidate) => candidate.name === item.name);
+      assert.ok(source, `${item.name} exact source missing`);
+      globalThis.fetch = async () => item.response();
+      const checked = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(checked.verdict.status, 'FOUND', `${item.name} should accept a matching canonical identifier`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('new exact adapters keep identifier mismatches uncertain', async () => {
+  const cases = [
+    ['TETR.IO', { success: true, data: { username: 'someone_else' } }],
+    ['RubyGems', { handle: 'someone_else' }],
+    ['Gravatar', { profile_url: 'https://gravatar.com/someone_else' }],
+    ['LemmyWorld', { person_view: { person: { name: 'someone_else' } } }],
+  ];
+
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [name, payload] of cases) {
+      const source = exactSources.find((candidate) => candidate.name === name);
+      assert.ok(source, `${name} exact source missing`);
+      globalThis.fetch = async () => new Response(JSON.stringify(payload), { status: 200 });
+      const checked = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(checked.verdict.status, 'UNKNOWN', `${name} must not confirm a mismatched identifier`);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }
