@@ -20,6 +20,53 @@ function public401(status: number, site: string): Verdict | null {
   };
 }
 
+function webFingerSource(
+  id: string,
+  name: string,
+  host: string,
+  profileUrl: (username: string) => string = (username) => `https://${host}/@${encodeURIComponent(username)}`,
+): SourceDefinition {
+  return {
+    id,
+    name,
+    category: 'social',
+    nsfw: false,
+    profileUrl,
+    validate: (username) => /^[A-Za-z0-9_]{1,64}$/.test(username),
+    probe: async (username, signal) => {
+      const expected = `acct:${username}@${host}`;
+      const response = await fetchJson(
+        `https://${host}/.well-known/webfinger?resource=${encodeURIComponent(expected)}`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, name);
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected, missing: true }),
+        };
+      }
+      const data = response.ok ? (await response.json().catch(() => null) as { subject?: string } | null) : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected, actual: data?.subject }),
+      };
+    },
+  };
+}
+
+function blockedVerdict(site: string, detail: string): Verdict {
+  return {
+    status: 'BLOCKED',
+    confidence: 'none',
+    reason: `${site} temporarily limited this public check.`,
+    signals: [{ kind: 'block', detail }],
+  };
+}
+
 export const exactSources: SourceDefinition[] = [
   {
     id: 'codewars',
@@ -176,6 +223,65 @@ export const exactSources: SourceDefinition[] = [
           actual: match?.name,
           missing: (data.data?.length ?? 0) === 0,
         }),
+      };
+    },
+  },
+  webFingerSource('mastodon-cloud', 'Mastodon.cloud', 'mastodon.cloud'),
+  webFingerSource('mastodon-xyz', 'Mastodon.xyz', 'mastodon.xyz'),
+  webFingerSource('mstdn-social', 'mstdn.social', 'mstdn.social'),
+  webFingerSource('mstdn-io', 'mstdn.io', 'mstdn.io'),
+  webFingerSource('social-tchncs-de', 'social.tchncs.de', 'social.tchncs.de'),
+  webFingerSource('chaos-social', 'chaos.social', 'chaos.social'),
+  webFingerSource('fosstodon', 'Fosstodon', 'fosstodon.org'),
+  webFingerSource('framapiaf', 'Framapiaf', 'framapiaf.org'),
+  webFingerSource('pixelfed-social', 'Pixelfed.social', 'pixelfed.social', (u) => `https://pixelfed.social/${encodeURIComponent(u)}`),
+  {
+    id: 'mixcloud',
+    name: 'Mixcloud',
+    category: 'media',
+    nsfw: false,
+    profileUrl: (u) => `https://www.mixcloud.com/${encodeURIComponent(u)}/`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://api.mixcloud.com/${encodeURIComponent(u)}/`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Mixcloud');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 403) {
+        return { httpStatus: response.status, verdict: blockedVerdict('Mixcloud', 'HTTP 403 from the public API; this can indicate rate limiting.') };
+      }
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { username?: string; key?: string } | null)
+        : null;
+      const keyUsername = data?.key?.match(/^\/([^/]+)\/$/)?.[1];
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.username ?? keyUsername }),
+      };
+    },
+  },
+  {
+    id: 'launchpad',
+    name: 'Launchpad',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://launchpad.net/~${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://api.launchpad.net/1.0/~${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Launchpad');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok ? (await response.json().catch(() => null) as { name?: string } | null) : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.name }),
       };
     },
   },

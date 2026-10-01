@@ -51,6 +51,34 @@ function normalizeUrl(value: string): string {
   }
 }
 
+function isGenericRedirect(target: string, finalUrl: string): boolean {
+  try {
+    if (normalizeUrl(target) === normalizeUrl(finalUrl)) return false;
+    const targetUrl = new URL(target);
+    const final = new URL(finalUrl);
+    const targetPath = targetUrl.pathname.replace(/\/+$/, '') || '/';
+    const finalPath = final.pathname.replace(/\/+$/, '') || '/';
+    if (targetPath === finalPath) return false;
+    return finalPath === '/'
+      || /\/(?:login|log-in|signin|sign-in|auth|404|not-found|notfound)(?:\/|$)/i.test(finalPath);
+  } catch {
+    return false;
+  }
+}
+
+function uncertain(status: number, detail: string): Verdict {
+  return {
+    status: 'UNKNOWN',
+    confidence: 'none',
+    reason: 'The public source did not return enough profile-specific evidence to decide.',
+    signals: [
+      { kind: 'status', detail: `HTTP ${status}` },
+      { kind: 'provenance', detail },
+      { kind: 'provenance', detail: `Rule adapted from ${SHERLOCK_SNAPSHOT}.` },
+    ],
+  };
+}
+
 function notFound(reason: string, status: number, detail: string): Verdict {
   return {
     status: 'NOT_FOUND',
@@ -170,6 +198,20 @@ function createCatalogSource(entry: CatalogEntry): SourceDefinition {
         if (normalizeUrl(response.url) === expectedErrorUrl) {
           return { httpStatus: response.status, verdict: notFound('The source redirected to its configured missing-profile destination.', response.status, `Final URL matched ${expectedErrorUrl}.`) };
         }
+      }
+
+      if (response.ok && isGenericRedirect(target, response.url)) {
+        return {
+          httpStatus: response.status,
+          verdict: uncertain(response.status, `Profile request redirected to generic destination ${response.url}.`),
+        };
+      }
+
+      if (response.ok && !body.trim()) {
+        return {
+          httpStatus: response.status,
+          verdict: uncertain(response.status, 'Successful response body was empty.'),
+        };
       }
 
       if (response.ok) {

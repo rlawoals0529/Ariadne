@@ -1,0 +1,140 @@
+# Source expansion and accuracy audit — 2026-10-01
+
+Ariadne's goal is broader public-profile coverage without treating every reachable page as proof that a username exists.
+
+This pass compares Ariadne's catalog with the current Sherlock source snapshot:
+
+- Sherlock snapshot: `sherlock-project/sherlock@e40a45ec2a074b90703b3b4b842c8a3adbd6ada3`
+- Sherlock entries in that snapshot: 481
+- Ariadne distinct source names before this pass: 133
+- Ariadne distinct source names after this pass: about 211
+- Expected default selection with no optional API credentials: 186 standard public-profile sources plus 19 opt-in adult sources (205 total)
+- Expected direct/exact adapters with no optional credentials: 28
+
+The automated source-catalog tests enforce the lower bounds above so later edits cannot silently shrink coverage.
+
+## New exact checks
+
+Exact sources are admitted only when Ariadne can compare a returned first-party or standards-based identifier with the requested username. A successful page load alone is not enough.
+
+### Federated profiles via WebFinger
+
+Ariadne now uses the standard `/.well-known/webfinger?resource=acct:username@host` flow for:
+
+- Mastodon.cloud
+- Mastodon.xyz
+- mstdn.social
+- mstdn.io
+- social.tchncs.de
+- chaos.social
+- Fosstodon
+- Framapiaf
+- Pixelfed.social
+
+The returned `subject` must match the requested `acct:` identifier. HTTP 404 is treated as an exact miss; rate limits, authentication walls, malformed responses, and mismatched subjects remain uncertain or blocked.
+
+Reference:
+- https://docs.joinmastodon.org/spec/webfinger/
+
+### Mixcloud
+
+Mixcloud documents a public read API that does not require authentication for user reads. Ariadne requests the username-specific API object and compares the returned username/key with the requested username.
+
+References:
+- https://www.mixcloud.com/developers/
+- https://help.mixcloud.com/hc/en-us/articles/10054754875932-FAQ-Usernames
+
+HTTP 404 is an exact miss. Public-API rate limiting or blocking remains Blocked.
+
+### Launchpad
+
+Launchpad exposes people through its public REST API at `https://api.launchpad.net/1.0/~<name>`. Ariadne compares the returned person `name` with the requested username.
+
+References:
+- https://help.launchpad.net/API
+- https://api.launchpad.net/1.0/
+- https://help.launchpad.net/API/launchpadlib
+
+HTTP 404 is an exact miss. Other failures remain uncertain or blocked.
+
+## Broad public-profile expansion
+
+Ariadne also adds a curated Sherlock-derived batch of public profile pages across developer, gaming, creative, media, community, and social categories.
+
+Broad-source rules remain deliberately weaker:
+
+- a broad positive is **Maybe**, never **Found**;
+- broad missing-profile signals are downgraded to **Couldn't tell** before they reach the user;
+- a generic redirect to a site homepage, login page, auth page, 404 route, or not-found route is **Couldn't tell**;
+- an empty successful response is **Couldn't tell**;
+- anti-bot or CAPTCHA responses remain **Blocked**.
+
+This pass adds sources including CodeChef, CodeSandbox, Crowdin, Gitee, HackerEarth, DMOJ, Lobsters, ObservableHQ, Open Collective, Packagist, Python.org Discussions, RubyGems, DailyMotion, Giphy, Odysee, Rate Your Music, ReverbNation, SlideShare, TheMovieDB, WordPress, Cults3D, MuseScore, MyMiniFactory, OpenGameArt, Redbubble, SpeakerDeck, YouPic, Kongregate, Newgrounds, PSNProfiles, Pokemon Showdown, RuneScape, Splits.io, TETR.IO, Typeracer, osu!, SpaceHey, Status Cafe, Pronouns.page, Untappd, and others.
+
+## Intentionally held back
+
+Ariadne does not aim to mirror every Sherlock entry. This pass intentionally excludes or defers categories that do not fit the product's evidence and safety boundaries.
+
+### Breach / compromised-data sources
+
+Examples include BreachSta.rs-related targets and HudsonRock-style breach or infostealer lookups.
+
+Reason: Ariadne is a public-profile finder, not a breach-data or compromised-account discovery product.
+
+### Financial and payment-account targets
+
+Examples include Cash App and Venmo-style username lookups.
+
+Reason: these can expose payment identities and are not necessary to Ariadne's public-profile purpose.
+
+### Messaging-account side channels
+
+Examples include arbitrary Discord, Slack, Signal, or similar account-existence probing.
+
+Reason: supported APIs generally do not provide a safe arbitrary-public-username existence lookup, and Ariadne will not use friend requests, signup, login, recovery, or other behavioral side channels.
+
+### Login, signup, recovery, or account-creation enumeration
+
+Not admitted even when another OSINT tool can infer existence through those flows.
+
+Reason: the product only checks public profile surfaces and first-party/standards-based public lookup endpoints.
+
+### Third-party mirrors and proxy-only checks
+
+Sources whose only practical rule depends on an unofficial mirror, embedded shared API key, or proxy-only bypass are held until Ariadne has a direct public-profile rule or first-party lookup.
+
+### Fragile anti-bot-only sources
+
+Sites whose current Sherlock entry explicitly notes that they only work through a proxy or are dominated by challenge pages are held rather than inflating coverage with mostly Blocked results.
+
+## Automated catalog guardrails
+
+`tests/sourceCatalog.test.mjs` now checks:
+
+1. selected source IDs are unique;
+2. selected source names remain unique after broad rules are replaced by exact adapters;
+3. standard source profile URLs use HTTPS;
+4. adult sources never leak into the standard selection;
+5. prohibited side-channel targets stay out of the searchable set;
+6. standard and exact-source counts do not silently fall below this pass's coverage floor;
+7. a broad source redirected to a generic destination becomes **Couldn't tell**;
+8. an empty successful broad response becomes **Couldn't tell**;
+9. an ordinary broad positive remains **Maybe**, never **Found**.
+
+The intended direction is to continue adding sources in batches while keeping these invariants stronger than the raw source-count goal.
+
+
+## Scan ordering and wide-scan latency
+
+The larger catalog changes scan scheduling as well as source count.
+
+Ariadne now orders eligible sources as:
+
+1. core direct checks;
+2. exact adapters;
+3. configured credential-backed exact checks;
+4. broad catalog rules.
+
+This means the strongest evidence appears in the earliest result batches instead of waiting behind hundreds of heuristic pages.
+
+Exact/direct checks keep the existing 4.5 second per-source timeout. Broad catalog checks use a 3.2 second timeout because a slow broad page can only produce Maybe/uncertain evidence anyway. Timeout responses remain Couldn't tell; Ariadne does not convert a timeout into a missing account.
