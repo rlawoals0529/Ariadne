@@ -8,8 +8,8 @@ This pass compares Ariadne's catalog with the current Sherlock source snapshot:
 - Sherlock entries in that snapshot: 481
 - Ariadne distinct source names before this pass: 133
 - Ariadne distinct source names after this pass: about 211
-- Expected default selection with no optional API credentials: at least 185 standard public-profile sources plus 19 opt-in adult sources
-- Expected direct/exact adapters with no optional credentials: at least 28
+- Expected default selection with no optional API credentials: 186 standard public-profile sources plus 19 opt-in adult sources (205 total)
+- Expected direct/exact adapters with no optional credentials: 28
 
 The automated source-catalog tests enforce the lower bounds above so later edits cannot silently shrink coverage.
 
@@ -122,3 +122,19 @@ Sites whose current Sherlock entry explicitly notes that they only work through 
 9. an ordinary broad positive remains **Maybe**, never **Found**.
 
 The intended direction is to continue adding sources in batches while keeping these invariants stronger than the raw source-count goal.
+
+
+## Scan ordering and wide-scan latency
+
+The larger catalog changes scan scheduling as well as source count.
+
+Ariadne now orders eligible sources as:
+
+1. core direct checks;
+2. exact adapters;
+3. configured credential-backed exact checks;
+4. broad catalog rules.
+
+This means the strongest evidence appears in the earliest result batches instead of waiting behind hundreds of heuristic pages.
+
+Exact/direct checks keep the existing 4.5 second per-source timeout. Broad catalog checks use a 3.2 second timeout because a slow broad page can only produce Maybe/uncertain evidence anyway. Timeout responses remain Couldn't tell; Ariadne does not convert a timeout into a missing account.
