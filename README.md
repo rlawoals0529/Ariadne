@@ -13,6 +13,7 @@ The result is an evidence report, not a row of green and red guesses.
 - **The report shows its own limits**: scan coverage, exact resolution, verified share, uncertainty, response-time distribution, an evidence funnel, and category footprint.
 - **Compare Friends** checks 2–6 usernames and keeps Found separate from Maybe while calculating overlap from the current scan.
 - Searches and comparisons are not stored server-side by Ariadne. Optional Account Review decisions are stored only in the user's browser.
+- Accounts explicitly marked **Mine → Clean up** can show a small curated set of first-party deletion, privacy, or profile-management guides. Ariadne only opens those official pages; it does not submit account changes.
 
 That caution is the point. A false positive wastes your time, while a false negative can hide the account you were trying to find.
 
@@ -92,6 +93,6 @@ See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Sherlock license 
 
 ## Safety boundary
 
-Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Searches and friend comparisons are not stored server-side. Optional Account Review decisions stay in the user's browser localStorage and are never sent with a scan.
+Ariadne is for public profile discovery and self-auditing public username footprints. It does not use breach databases, password-reset flows, signup-form account enumeration, authentication bypasses, or private APIs. Searches and friend comparisons are not stored server-side. Optional Account Review decisions stay in the user's browser localStorage and are never sent with a scan. Cleanup resources are a curated allowlist of first-party help/settings pages, shown only after the user marks an account as theirs and chooses Clean up. Ariadne does not automate deletion, deactivation, sign-in, or privacy changes.
 
 See [`docs/architecture.md`](docs/architecture.md) for source-admission and evidence rules and [`SECURITY.md`](SECURITY.md) for security boundaries.
