@@ -49,6 +49,13 @@ test('coverage expansion materially increases standard and exact checks', () => 
   assert.ok(extendedCatalogSources.length >= 89, `expected at least 89 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
+test('wide scans prioritize direct evidence before broad catalog checks', () => {
+  const selected = selectSources(false, {});
+  const firstThirty = selected.slice(0, 30);
+  const directFirst = firstThirty.filter((source) => !source.id.startsWith('catalog-')).length;
+  assert.ok(directFirst >= 28, `expected direct checks first, got only ${directFirst} direct sources in the first 30`);
+});
+
 test('broad status-code sources do not treat generic redirects as a possible match', async () => {
   const source = extendedCatalogSources.find((item) => item.name === 'Coderwall');
   assert.ok(source, 'Coderwall source missing');
