@@ -145,3 +145,31 @@ Gitea documents `GET /api/v1/users/{username}` as its user lookup endpoint and t
 - identifier mismatch: Couldn't tell.
 
 Ariadne does not assume authentication-free availability. If the host requires authentication, the adapter reports Blocked rather than falling back to a weaker inference.
+
+
+## 2026-10-01 Discourse forum exact-source promotion
+
+Discourse exposes a username-specific JSON route at `/u/{username}.json`. Discourse Meta documents the route for user data and examples show a payload containing `user.username`; public profile restrictions may reduce the other returned fields without removing that canonical username.
+
+References:
+- https://meta.discourse.org/t/adding-non-visible-user-custom-fields-to-the-api/276618
+- https://meta.discourse.org/t/get-a-single-user-by-username-response-limited-via-python-request/313887
+
+Ariadne's forum adapter:
+
+- requests `https://{forum-host}/u/{username}.json`;
+- requires returned `user.username` to match before returning Found;
+- treats HTTP 404 as No match;
+- treats HTTP 401/403 as Blocked;
+- leaves malformed, non-JSON, or mismatched responses as Couldn't tell.
+
+The adapter is used only for public Discourse community profiles already in Ariadne's catalog, plus HackerSploit and Windy.
+
+## 2026-10-01 programming.dev exact-source promotion
+
+Lemmy's official API documents `GET /api/v4/person` with an optional bearer authorization and a `username` query parameter for fetching person details.
+
+Reference:
+- https://join-lemmy.org/api/main
+
+Ariadne requests `https://programming.dev/api/v4/person?username={username}` and only returns Found when the returned person's canonical `name` matches the requested username.
