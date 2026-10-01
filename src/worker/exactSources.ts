@@ -557,6 +557,113 @@ export const exactSources: SourceDefinition[] = [
     },
   },
   {
+    id: 'gnome-vcs',
+    name: 'GNOME VCS',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://gitlab.gnome.org/${encodeURIComponent(u)}`,
+    validate: (u) => /^(?!-)[a-zA-Z0-9_.-]{2,255}(?<!\.)$/.test(u),
+    probe: async (u, signal) => {
+      const response = await fetchJson(
+        `https://gitlab.gnome.org/api/v4/users?username=${encodeURIComponent(u)}`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'GNOME VCS');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (!response.ok) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u }),
+        };
+      }
+      const data = await response.json().catch(() => null) as Array<{ username?: string }> | null;
+      const match = data?.find((item) => item.username?.toLocaleLowerCase() === u.toLocaleLowerCase());
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: match?.username,
+          missing: Array.isArray(data) && data.length === 0,
+        }),
+      };
+    },
+  },
+  {
+    id: 'notabug-org',
+    name: 'NotABug.org',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://notabug.org/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(
+        `https://notabug.org/api/v1/users/${encodeURIComponent(u)}`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'NotABug.org');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }),
+        };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { login?: string } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.login }),
+      };
+    },
+  },
+  {
+    id: 'freelancer',
+    name: 'Freelancer',
+    category: 'professional',
+    nsfw: false,
+    profileUrl: (u) => `https://www.freelancer.com/u/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(
+        `https://www.freelancer.com/api/users/0.1/users?usernames%5B%5D=${encodeURIComponent(u)}&compact=true`,
+        signal,
+      );
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'Freelancer');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 403) {
+        return { httpStatus: response.status, verdict: blockedVerdict('Freelancer', 'HTTP 403 from the public users API.') };
+      }
+      if (!response.ok) {
+        return {
+          httpStatus: response.status,
+          verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u }),
+        };
+      }
+      const data = await response.json().catch(() => null) as {
+        result?: { users?: Record<string, { username?: string }> };
+        users?: Record<string, { username?: string }>;
+      } | null;
+      const users = data?.result?.users ?? data?.users ?? {};
+      const values = Object.values(users);
+      const match = values.find((item) => item.username?.toLocaleLowerCase() === u.toLocaleLowerCase());
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({
+          httpStatus: response.status,
+          expected: u,
+          actual: match?.username,
+          missing: values.length === 0,
+        }),
+      };
+    },
+  },
+  {
     id: 'mastodon-social',
     name: 'Mastodon.social',
     category: 'social',
