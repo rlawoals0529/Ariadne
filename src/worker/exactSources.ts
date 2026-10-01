@@ -624,7 +624,7 @@ export const exactSources: SourceDefinition[] = [
   {
     id: 'freelancer',
     name: 'Freelancer',
-    category: 'professional',
+    category: 'community',
     nsfw: false,
     profileUrl: (u) => `https://www.freelancer.com/u/${encodeURIComponent(u)}`,
     probe: async (u, signal) => {
