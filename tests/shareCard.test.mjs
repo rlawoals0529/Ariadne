@@ -53,7 +53,7 @@ test('long similar handles keep distinguishing suffixes', () => {
   assert.match(svg, /@averylong…eone/);
   assert.match(svg, /@averylong…etwo/);
   assert.match(svg, /@averylong…hree/);
-  assert.match(svg, /@averylong…efour/);
-  assert.match(svg, /@averylong…efive/);
+  assert.match(svg, /@averylong…four/);
+  assert.match(svg, /@averylong…five/);
   assert.match(svg, /@averylong…esix/);
 });
