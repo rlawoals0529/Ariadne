@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
 import { buildShareHash, parseShareHash } from './shareState';
+import { buildFriendShareCardSvg } from './shareCard';
 import type { ResultStatus, SearchResponse, SourceCategory, SourceResult } from './shared/types';
 
 const FRIEND_LIMIT = 6;
@@ -327,6 +328,35 @@ export default function App() {
     await copy(summaryText);
   }
 
+  async function sharePartyCard() {
+    if (!partyMetrics.participants.length) return;
+    const svg = buildFriendShareCardSvg(partyMetrics);
+    const file = new File([svg], 'ariadne-friends.svg', { type: 'image/svg+xml' });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: 'Ariadne · Friend Footprint',
+          text: 'A scan-derived friend footprint from Ariadne. Public profile signals only.',
+          files: [file],
+        });
+        return;
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      }
+    }
+
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ariadne-friends.svg';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function sharePartySummary() {
     const closest = partyMetrics.closestPair;
     const twins = partyMetrics.internetTwins;
@@ -555,7 +585,7 @@ export default function App() {
         </section>
       )}
 
-      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onShare={sharePartySummary} onShareSetup={() => shareSetupLink('party')} />}
+      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onShare={sharePartySummary} onShareCard={sharePartyCard} onShareSetup={() => shareSetupLink('party')} />}
 
       <footer><span>ARIADNE v1.0</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
     </main>
@@ -922,7 +952,7 @@ function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; compl
   );
 }
 
-function PartyReport({ reports, metrics, loading, onExport, onShare, onShareSetup }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onShare: () => void; onShareSetup: () => void }) {
+function PartyReport({ reports, metrics, loading, onExport, onShare, onShareCard, onShareSetup }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onShare: () => void; onShareCard: () => void; onShareSetup: () => void }) {
   const everyoneLabel = metrics.everyoneSites.length ? `${metrics.everyoneSites.length} ${metrics.everyoneSites.length === 1 ? 'site' : 'sites'}` : 'None yet';
   const everyoneNote = metrics.everyoneSites.length
     ? `${metrics.verifiedEveryoneSites.length} verified for everyone${metrics.everyoneSites.length <= 3 ? ` · ${metrics.everyoneSites.join(', ')}` : ''}`
@@ -939,7 +969,7 @@ function PartyReport({ reports, metrics, loading, onExport, onShare, onShareSetu
           <div className="eyebrow">FRIEND REPORT</div>
           <p>{reports.length} completed ${reports.length === 1 ? 'scan' : 'scans'}{loading ? ' · still checking' : ''}</p>
         </div>
-        <div className="party-actions"><button className="secondary" onClick={onShare}>Share snapshot</button><button className="secondary" onClick={onShareSetup} title="Shares a link that only prefills these usernames">Share setup</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
+        <div className="party-actions"><button className="secondary" onClick={onShareCard}>Share card</button><button className="secondary" onClick={onShare}>Share text</button><button className="secondary" onClick={onShareSetup} title="Shares a link that only prefills these usernames">Share setup</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
       </div>
 
       <section className="friend-report-hero" aria-label="Friend footprint summary">
@@ -956,6 +986,32 @@ function PartyReport({ reports, metrics, loading, onExport, onShare, onShareSetu
           <div><span>Shared</span><strong>{metrics.shared.length}</strong><small>Found or Maybe for 2+</small></div>
           <div><span>Everyone</span><strong>{metrics.everyoneSites.length}</strong><small>appeared for all completed</small></div>
         </div>
+      </section>
+
+      <section className="friend-share-preview-section" aria-label="Shareable friend footprint card">
+        <div className="party-section-head">
+          <div><div className="eyebrow">SHARE CARD</div><h3>A snapshot from this scan</h3></div>
+          <span>Uses only current Found and Maybe evidence</span>
+        </div>
+        <article className="friend-share-preview">
+          <div className="friend-share-brand"><span className="source-glyph">A</span><div><strong>ARIADNE</strong><small>FRIEND FOOTPRINT</small></div></div>
+          <h4>{participantLine}</h4>
+          <p><strong>{metrics.shared.length}</strong> public site{metrics.shared.length === 1 ? '' : 's'} appeared for more than one username. <strong>{metrics.verifiedShared.length}</strong> were Found for at least two.</p>
+          <dl>
+            <div><dt>People</dt><dd>{reports.length}</dd></div>
+            <div><dt>Shared</dt><dd>{metrics.shared.length}</dd></div>
+            <div><dt>Everyone</dt><dd>{metrics.everyoneSites.length}</dd></div>
+            <div><dt>Found</dt><dd>{foundTotal}</dd></div>
+            <div><dt>Maybe</dt><dd>{maybeTotal}</dd></div>
+          </dl>
+          {metrics.shared.length > 0 && (
+            <div className="friend-share-sites">
+              {metrics.shared.slice(0, 6).map((source) => <span key={source}>{source}</span>)}
+              {metrics.shared.length > 6 && <span>+{metrics.shared.length - 6} more</span>}
+            </div>
+          )}
+          <small>Matching usernames are public signals, not proof that accounts belong to the same person.</small>
+        </article>
       </section>
 
       <section className="friend-takes" aria-label="Friend comparison quick takes">
