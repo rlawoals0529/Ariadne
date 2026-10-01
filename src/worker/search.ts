@@ -23,6 +23,7 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-keybase',
   'catalog-lemmyworld',
   'catalog-scratch',
+  'catalog-sourceforge',
   'catalog-roblox',
   'catalog-mastodon-social',
   'catalog-lichess',
