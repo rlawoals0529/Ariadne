@@ -37,9 +37,9 @@ const failures = [];
 if (duplicateIds.length) failures.push(`duplicate source ids: ${[...new Set(duplicateIds)].join(', ')}`);
 if (duplicateNames.length) failures.push(`duplicate selected names: ${[...new Set(duplicateNames)].join(', ')}`);
 if (httpsFailures.length) failures.push(`non-HTTPS profile URLs: ${httpsFailures.map((item) => item.name).join(', ')}`);
-if (stats.standard < 258) failures.push(`standard source count fell below 258 (got ${stats.standard})`);
-if (stats.direct < 34) failures.push(`direct/exact count fell below 34 (got ${stats.direct})`);
-if (extendedCatalogStats.total < 160) failures.push(`extended rule count fell below 160 (got ${extendedCatalogStats.total})`);
+if (stats.standard < 279) failures.push(`standard source count fell below 279 (got ${stats.standard})`);
+if (stats.direct < 35) failures.push(`direct/exact count fell below 35 (got ${stats.direct})`);
+if (extendedCatalogStats.total < 181) failures.push(`extended rule count fell below 181 (got ${extendedCatalogStats.total})`);
 if (directShare < 10) failures.push(`direct/exact share fell below 10% (got ${directShare}%)`);
 
 if (failures.length) {
