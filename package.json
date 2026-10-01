@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "check": "npm run test && npm run build && wrangler deploy --dry-run",
     "test": "rm -rf .test-dist && tsc -p tsconfig.tests.json && node --test tests/*.test.mjs",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "audit:sources": "rm -rf .test-dist && tsc -p tsconfig.tests.json && node scripts/audit-sources.mjs"
   },
   "dependencies": {
     "react": "19.2.1",
