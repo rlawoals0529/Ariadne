@@ -252,3 +252,47 @@ Gitee is also promoted from a broad profile rule to its documented OpenAPI user 
 - the returned `UserInfo` model exposes the canonical `login`;
 - Ariadne only returns Found when `login` matches the requested username;
 - HTTP 404 is an exact miss; mismatches and other ambiguous failures remain uncertain.
+
+
+## Fourth pass: tighten broad positives
+
+The source-health audit identified the weakest broad-rule class as status-code-only rules: sources that treated a successful page response as a Maybe without a dedicated probe URL, username validator, explicit missing-page marker, or redirect rule.
+
+Ariadne now requires additional username evidence for that class:
+
+- generic redirects are still Couldn't tell;
+- empty successful responses are still Couldn't tell;
+- status-only rules without a dedicated probe or username validator must contain the requested username in the inspected response body before they can become Maybe;
+- usernames shorter than three characters stay Couldn't tell for these weakest rules because substring evidence is too noisy;
+- the rule still cannot produce Found.
+
+This makes the broad catalog more conservative as it grows instead of allowing raw HTTP 200 responses to accumulate as Maybe results.
+
+### Gitea exact-source promotion
+
+Gitea is promoted from its inherited broad page rule to the documented user API at `GET /api/v1/users/{username}`.
+
+- positive evidence: returned `login` equals the requested username;
+- HTTP 404: exact miss;
+- HTTP 401: Blocked;
+- identifier mismatch or malformed response: Couldn't tell.
+
+### Fourth curated broad batch
+
+The catalog also adds a smaller public-profile batch including VJudge, Blitz Tactics, Clozemaster, Cplusplus, Cryptomator Forum, DigitalSpy, Envato Forum, Exophase, Fanpop, GaiaOnline, Hubski, OurDJTalk, Rclone Forum, Ruby Forums, SoylentNews, Warrior Forum, Wolfram Community, eGPU, Leasehackr, Nairaland, and programming.dev.
+
+This raises the catalog floor to:
+
+- at least 279 standard sources;
+- 19 opt-in adult sources;
+- at least 35 direct/exact checks;
+- at least 26 exact adapter definitions;
+- at least 181 extended broad rules.
+
+### Additional exclusions
+
+The same pass reviewed other Sherlock candidates and held back:
+
+- Daily Kos, because the upstream probe uses a signup nickname-check endpoint;
+- NationStates nation/region entries, because those names represent game entities rather than user-account profiles;
+- entries whose strongest available signal is still login, registration, availability, recovery, or another behavioral enumeration side channel.

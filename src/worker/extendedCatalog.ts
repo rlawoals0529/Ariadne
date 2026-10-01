@@ -206,6 +206,21 @@ function createSource(entry: Entry): SourceDefinition {
         };
       }
 
+      if (response.ok && entry.errorType === 'status_code' && !entry.probe && !entry.regex) {
+        const needle = username.toLocaleLowerCase();
+        if (needle.length < 3 || !lower.includes(needle)) {
+          return {
+            httpStatus: response.status,
+            verdict: uncertain(
+              response.status,
+              needle.length < 3
+                ? 'Status-only rule is too weak to evaluate a username shorter than three characters.'
+                : 'Status-only page loaded but did not contain the requested username in the inspected response body.',
+            ),
+          };
+        }
+      }
+
       if (response.ok) return { httpStatus: response.status, verdict: possible(response.status, entry.errorType) };
 
       return {
@@ -385,6 +400,27 @@ const entries: Entry[] = [
   { name: 'Weblate', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z0-9@._-]{1,150}$', url: 'https://hosted.weblate.org/user/{}/' },
   { name: 'Icons8 Community', category: 'community', errorType: 'status_code', url: 'https://community.icons8.com/u/{}/summary' },
   { name: 'Ionic Forum', category: 'developer', errorType: 'status_code', url: 'https://forum.ionicframework.com/u/{}' },
+  { name: 'VJudge', category: 'developer', errorType: 'status_code', url: 'https://vjudge.net/user/{}' },
+  { name: 'Blitz Tactics', category: 'gaming', errorType: 'message', errorMsg: "That page doesn't exist", url: 'https://blitztactics.com/{}' },
+  { name: 'Clozemaster', category: 'gaming', errorType: 'message', errorMsg: 'Oh no! Player not found.', url: 'https://www.clozemaster.com/players/{}' },
+  { name: 'Cplusplus', category: 'developer', errorType: 'message', errorMsg: '<title>404 Page Not Found</title>', url: 'https://cplusplus.com/user/{}' },
+  { name: 'Cryptomator Forum', category: 'developer', errorType: 'status_code', url: 'https://community.cryptomator.org/u/{}' },
+  { name: 'DigitalSpy', category: 'community', errorType: 'message', errorMsg: 'The page you were looking for could not be found.', regex: '^\\w{3,20}$', url: 'https://forums.digitalspy.com/profile/{}' },
+  { name: 'Envato Forum', category: 'creative', errorType: 'status_code', url: 'https://forums.envato.com/u/{}' },
+  { name: 'Exophase', category: 'gaming', errorType: 'status_code', url: 'https://www.exophase.com/user/{}/' },
+  { name: 'Fanpop', category: 'media', errorType: 'response_url', errorUrl: 'https://www.fanpop.com/', url: 'https://www.fanpop.com/fans/{}' },
+  { name: 'GaiaOnline', category: 'social', errorType: 'message', errorMsg: 'No user ID specified or user does not exist', url: 'https://www.gaiaonline.com/profiles/{}' },
+  { name: 'Hubski', category: 'community', errorType: 'message', errorMsg: 'No such user', url: 'https://hubski.com/user/{}' },
+  { name: 'OurDJTalk', category: 'community', errorType: 'message', errorMsg: 'The specified member cannot be found', url: 'https://ourdjtalk.com/members?username={}' },
+  { name: 'Rclone Forum', category: 'developer', errorType: 'status_code', url: 'https://forum.rclone.org/u/{}' },
+  { name: 'Ruby Forums', category: 'developer', errorType: 'message', errorMsg: 'Oops! That page doesn’t exist or is private.', url: 'https://ruby-forum.com/u/{}/summary' },
+  { name: 'SoylentNews', category: 'community', errorType: 'message', errorMsg: 'The user you requested does not exist, no matter how much you wish this might be the case.', url: 'https://soylentnews.org/~{}' },
+  { name: 'Warrior Forum', category: 'community', errorType: 'status_code', url: 'https://www.warriorforum.com/members/{}.html' },
+  { name: 'Wolfram Community', category: 'community', errorType: 'status_code', url: 'https://community.wolfram.com/web/{}/home' },
+  { name: 'eGPU', category: 'community', errorType: 'status_code', url: 'https://egpu.io/forums/profile/{}/' },
+  { name: 'Leasehackr', category: 'community', errorType: 'status_code', url: 'https://forum.leasehackr.com/u/{}/summary/' },
+  { name: 'Nairaland', category: 'community', errorType: 'status_code', url: 'https://www.nairaland.com/{}' },
+  { name: 'programming.dev', category: 'developer', errorType: 'message', errorMsg: 'Error!', url: 'https://programming.dev/u/{}' },
 ];
 
 export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);

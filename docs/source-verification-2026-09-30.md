@@ -131,3 +131,17 @@ Gitee's OpenAPI documentation lists `GET /v5/users/{username}` for retrieving a 
 - authentication/rate-limit/server failures: blocked or uncertain.
 
 This exact adapter replaces the inherited broad Gitee rule.
+
+
+## 2026-10-01 Gitea exact-source promotion
+
+Gitea documents `GET /api/v1/users/{username}` as its user lookup endpoint and the returned user object includes the canonical login field.
+
+- documentation: https://docs.gitea.com/api/1.24/operations/user-get/
+- endpoint: `https://gitea.com/api/v1/users/{username}`
+- positive evidence: returned `login` equals the requested username;
+- HTTP 404: exact miss;
+- HTTP 401: Blocked;
+- identifier mismatch: Couldn't tell.
+
+Ariadne does not assume authentication-free availability. If the host requires authentication, the adapter reports Blocked rather than falling back to a weaker inference.
