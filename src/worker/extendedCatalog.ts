@@ -421,6 +421,26 @@ const entries: Entry[] = [
   { name: 'Leasehackr', category: 'community', errorType: 'status_code', url: 'https://forum.leasehackr.com/u/{}/summary/' },
   { name: 'Nairaland', category: 'community', errorType: 'status_code', url: 'https://www.nairaland.com/{}' },
   { name: 'programming.dev', category: 'developer', errorType: 'message', errorMsg: 'Error!', url: 'https://programming.dev/u/{}' },
+  { name: '2Dimensions', category: 'creative', errorType: 'status_code', url: 'https://2dimensions.com/a/{}' },
+  { name: 'Autofrage', category: 'community', errorType: 'status_code', url: 'https://www.autofrage.net/nutzer/{}' },
+  { name: 'Clapper', category: 'social', errorType: 'status_code', url: 'https://clapperapp.com/{}' },
+  { name: 'Code Snippet Wiki', category: 'developer', errorType: 'message', errorMsg: 'This user has not filled out their profile page yet', url: 'https://codesnippets.fandom.com/wiki/User:{}' },
+  { name: 'Harvard Scholar', category: 'community', errorType: 'status_code', url: 'https://scholar.harvard.edu/{}' },
+  { name: 'Hive Blog', category: 'social', errorType: 'message', errorMsg: '<title>User Not Found - Hive</title>', url: 'https://hive.blog/@{}' },
+  { name: 'IFTTT', category: 'developer', errorType: 'status_code', regex: '^[A-Za-z0-9]{3,35}$', url: 'https://www.ifttt.com/p/{}' },
+  { name: 'Jellyfin Weblate', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z0-9@._-]{1,150}$', url: 'https://translate.jellyfin.org/user/{}/' },
+  { name: 'Laracasts', category: 'developer', errorType: 'status_code', regex: '^[a-zA-Z0-9_-]{3,}$', url: 'https://laracasts.com/@{}' },
+  { name: 'Memrise', category: 'community', errorType: 'status_code', url: 'https://www.memrise.com/user/{}/' },
+  { name: 'Nightbot', category: 'media', errorType: 'status_code', url: 'https://nightbot.tv/t/{}/commands', probe: 'https://api.nightbot.tv/1/channels/t/{}' },
+  { name: 'PCGamer', category: 'gaming', errorType: 'message', errorMsg: "The specified member cannot be found. Please enter a member's entire name.", url: 'https://forums.pcgamer.com/members/?username={}' },
+  { name: 'Patched', category: 'gaming', errorType: 'message', errorMsg: "The member you specified is either invalid or doesn't exist.", url: 'https://patched.sh/User/{}' },
+  { name: 'Pinkbike', category: 'community', errorType: 'status_code', regex: '^[^.]*?$', url: 'https://www.pinkbike.com/u/{}/' },
+  { name: 'Polymart', category: 'creative', errorType: 'response_url', errorUrl: 'https://polymart.org/user/-1', url: 'https://polymart.org/user/{}' },
+  { name: 'Realmeye', category: 'gaming', errorType: 'message', errorMsg: 'Sorry, but we either:', url: 'https://www.realmeye.com/player/{}' },
+  { name: 'Tenor', category: 'media', errorType: 'status_code', regex: '^[A-Za-z0-9_]{2,32}$', url: 'https://tenor.com/users/{}' },
+  { name: 'Terraria Forums', category: 'gaming', errorType: 'message', errorMsg: 'The following members could not be found', url: 'https://forums.terraria.org/index.php?search/42798315/&c[users]={}&o=relevance' },
+  { name: 'Tweakers', category: 'community', errorType: 'status_code', url: 'https://tweakers.net/gallery/{}' },
+  { name: 'Vero', category: 'social', errorType: 'message', errorMsg: 'Not Found', url: 'https://vero.co/{}' },
 ];
 
 export const extendedCatalogSources: SourceDefinition[] = entries.map(createSource);
@@ -434,5 +454,11 @@ export const extendedCatalogStats = {
     withProbe: entries.filter((entry) => Boolean(entry.probe)).length,
     withRegex: entries.filter((entry) => Boolean(entry.regex)).length,
     statusOnly: entries.filter((entry) => entry.errorType === 'status_code' && !entry.probe && !entry.regex).length,
+  },
+  qualityTiers: {
+    dedicatedProbe: entries.filter((entry) => Boolean(entry.probe)).length,
+    explicitNegative: entries.filter((entry) => !entry.probe && (entry.errorType === 'message' || entry.errorType === 'response_url')).length,
+    statusWithValidator: entries.filter((entry) => !entry.probe && entry.errorType === 'status_code' && Boolean(entry.regex)).length,
+    statusWithBodyEvidence: entries.filter((entry) => !entry.probe && entry.errorType === 'status_code' && !entry.regex).length,
   },
 } as const;

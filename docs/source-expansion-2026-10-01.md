@@ -296,3 +296,77 @@ The same pass reviewed other Sherlock candidates and held back:
 - Daily Kos, because the upstream probe uses a signup nickname-check endpoint;
 - NationStates nation/region entries, because those names represent game entities rather than user-account profiles;
 - entries whose strongest available signal is still login, registration, availability, recovery, or another behavioral enumeration side channel.
+
+
+## Fifth pass: exact forum promotion and quality tiers
+
+This pass focuses on replacing broad forum-page heuristics with canonical username responses instead of simply increasing source count.
+
+### Discourse exact checks
+
+Ariadne now uses the public Discourse user JSON route, `/u/{username}.json`, for supported public communities. Discourse Meta documents this endpoint and examples show the response retaining the canonical `user.username` even when other profile fields are hidden.
+
+Promoted existing broad rules include:
+
+- Caddy Community
+- Cloudflare Community
+- Choice Community
+- Discuss Elastic
+- Joplin Forum
+- Jupyter Community Forum
+- Nextcloud Forum
+- n8n Community
+- Sublime Forum
+- WICG Forum
+- Cryptomator Forum
+- Envato Forum
+- HackTheBox
+- Rclone Forum
+- Ionic Forum
+- Leasehackr
+- Nothing Community
+- Icons8 Community
+- Ruby Forums
+
+HackerSploit and Windy are added directly as exact Discourse checks rather than broad rules.
+
+For every Discourse adapter:
+
+- Found requires returned `user.username` to equal the requested username;
+- HTTP 404 is an exact miss;
+- HTTP 401/403 is Blocked;
+- malformed JSON, redirects to HTML, or username mismatch remain Couldn't tell.
+
+### programming.dev exact check
+
+programming.dev is promoted from a broad rule to Lemmy's public person endpoint at `GET /api/v4/person?username={username}`. Lemmy's API documentation marks this endpoint as usable without bearer authentication and returns the canonical person name.
+
+Found requires the returned person `name` to match the request.
+
+### Fifth curated broad batch
+
+Another conservative set of public profile pages is added:
+
+2Dimensions, Autofrage, Clapper, Code Snippet Wiki, Harvard Scholar, Hive Blog, IFTTT, Jellyfin Weblate, Laracasts, Memrise, Nightbot, PCGamer, Patched, Pinkbike, Polymart, Realmeye, Tenor, Terraria Forums, Tweakers, and Vero.
+
+These remain broad/Maybe-only sources under all existing redirect, empty-body, challenge, negative-signal, and status-body-evidence safeguards.
+
+### Evidence quality tiers
+
+The source audit now classifies each extended broad rule into one mutually exclusive quality tier:
+
+1. **Dedicated probe** — a source-specific public probe URL is available.
+2. **Explicit negative signal** — a known missing-profile message or redirect distinguishes misses.
+3. **Status + validator** — HTTP status is combined with a source-specific username validator.
+4. **Status + body evidence** — the weakest allowed class; a successful page must also contain the requested username before Ariadne can show Maybe.
+
+CI now enforces:
+
+- at least 301 standard public-profile sources;
+- at least 57 direct/exact checks;
+- at least 48 exact adapter definitions;
+- at least 201 extended broad rules;
+- direct/exact coverage of at least 15% of standard sources;
+- no more than 100 rules in the weakest status + body evidence tier.
+
+This makes source quality an explicit regression gate instead of only tracking raw source count.

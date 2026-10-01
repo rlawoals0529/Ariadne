@@ -43,10 +43,10 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 279, `expected at least 279 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 35, `expected at least 35 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 26, `expected at least 26 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 181, `expected at least 181 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 301, `expected at least 301 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 57, `expected at least 57 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 48, `expected at least 48 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 201, `expected at least 201 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
@@ -257,6 +257,51 @@ test('Gitea exact adapter requires canonical login evidence', async () => {
     assert.equal(found.verdict.status, 'FOUND');
 
     globalThis.fetch = async () => new Response(JSON.stringify({ login: 'someone_else' }), { status: 200 });
+    const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(mismatch.verdict.status, 'UNKNOWN');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('Discourse exact adapters require canonical usernames', async () => {
+  const source = exactSources.find((candidate) => candidate.name === 'Leasehackr');
+  assert.ok(source, 'Leasehackr Discourse exact source missing');
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'ariadne_audit' } }), { status: 200 });
+    const found = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(found.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'someone_else' } }), { status: 200 });
+    const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(mismatch.verdict.status, 'UNKNOWN');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({}), { status: 404 });
+    const missing = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(missing.verdict.status, 'NOT_FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({}), { status: 403 });
+    const blocked = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(blocked.verdict.status, 'BLOCKED');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('programming.dev exact adapter requires canonical Lemmy person name', async () => {
+  const source = exactSources.find((candidate) => candidate.name === 'programming.dev');
+  assert.ok(source, 'programming.dev exact source missing');
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ person_view: { person: { name: 'ariadne_audit' } } }), { status: 200 });
+    const found = await source.probe('ariadne_audit', new AbortController().signal);
+    assert.equal(found.verdict.status, 'FOUND');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ person_view: { person: { name: 'someone_else' } } }), { status: 200 });
     const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
     assert.equal(mismatch.verdict.status, 'UNKNOWN');
   } finally {
