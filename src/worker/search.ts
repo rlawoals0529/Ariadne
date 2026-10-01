@@ -3,7 +3,8 @@ import { exactSources } from './exactSources.js';
 import { buildPopularCredentialSources, type PopularSourceCredentials } from './credentialSources.js';
 import { sources, type SourceDefinition } from './sources.js';
 
-const TIMEOUT_MS = 4500;
+const EXACT_TIMEOUT_MS = 4500;
+const BROAD_TIMEOUT_MS = 3200;
 const CONCURRENCY = 5;
 export const SEARCH_BATCH_SIZE = 30;
 
@@ -46,7 +47,12 @@ function eligibleSources(credentials: PopularSourceCredentials = {}): SourceDefi
     const duplicate = CREDENTIAL_REPLACEMENTS[source.id];
     if (duplicate) disabled.add(duplicate);
   }
-  return [...sources, ...exactSources, ...credentialSources].filter((source) => !disabled.has(source.id));
+
+  const directCore = sources.filter((source) => !source.id.startsWith('catalog-'));
+  const broadCatalog = sources.filter((source) => source.id.startsWith('catalog-'));
+
+  return [...directCore, ...exactSources, ...credentialSources, ...broadCatalog]
+    .filter((source) => !disabled.has(source.id));
 }
 
 function evidenceBasis(source: SourceDefinition): EvidenceBasis {
@@ -96,7 +102,8 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort('source timeout'), TIMEOUT_MS);
+  const timeoutMs = basis === 'catalog-rule' ? BROAD_TIMEOUT_MS : EXACT_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort('source timeout'), timeoutMs);
   try {
     const { httpStatus, verdict } = await source.probe(username, controller.signal);
     return makeCatalogNegativeConservative({
@@ -126,7 +133,7 @@ async function checkSource(source: SourceDefinition, username: string): Promise<
       httpStatus: null,
       checkedAt,
       durationMs: Date.now() - started,
-      signals: [{ kind: 'error', detail: timedOut ? `Timed out after ${TIMEOUT_MS} ms.` : error instanceof Error ? error.message : 'Unknown network error.' }],
+      signals: [{ kind: 'error', detail: timedOut ? `Timed out after ${timeoutMs} ms.` : error instanceof Error ? error.message : 'Unknown network error.' }],
     };
   } finally {
     clearTimeout(timeout);
