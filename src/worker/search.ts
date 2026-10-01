@@ -21,6 +21,7 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-hugging-face',
   'catalog-instagram',
   'catalog-keybase',
+  'catalog-lemmyworld',
   'catalog-scratch',
   'catalog-roblox',
   'catalog-mastodon-social',
