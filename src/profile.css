@@ -404,7 +404,11 @@
     align-items: flex-start;
     flex-direction: column;
   }
-  .profile-summary-actions { justify-content: flex-start; }
+  .profile-summary-actions {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
   .profile-metrics { grid-template-columns: repeat(2, 1fr); }
   .profile-metric:nth-child(2) { border-right: 0; }
   .profile-metric:nth-child(n + 3) { border-top: 1px solid var(--line); }
