@@ -556,6 +556,8 @@ export const exactSources: SourceDefinition[] = [
       };
     },
   },
+  discourseSource('car-talk-community', 'Car Talk Community', 'community.cartalk.com', 'community'),
+  discourseSource('spells8', 'Spells8', 'forum.spells8.com', 'community'),
   {
     id: 'gnome-vcs',
     name: 'GNOME VCS',
