@@ -14,6 +14,19 @@ export type FriendPair = {
   topCategoryCount: number;
 };
 
+export type FriendSharedSource = {
+  sourceId: string;
+  sourceName: string;
+  category: SourceResult['category'];
+  participantCount: number;
+  foundCount: number;
+  possibleCount: number;
+  statuses: Array<{
+    query: string;
+    status: 'FOUND' | 'POSSIBLE';
+  }>;
+};
+
 export type FriendMetrics = {
   participants: Array<{
     query: string;
@@ -24,6 +37,7 @@ export type FriendMetrics = {
     categories: Array<[string, number]>;
   }>;
   shared: string[];
+  sharedDetails: FriendSharedSource[];
   verifiedShared: string[];
   everyoneSites: string[];
   verifiedEveryoneSites: string[];
@@ -39,12 +53,16 @@ export function buildFriendMetrics(reports: SearchResponse[]): FriendMetrics {
   const sourceUsers = new Map<string, Set<string>>();
   const verifiedSourceUsers = new Map<string, Set<string>>();
   const sourceNames = new Map<string, string>();
-  const sourceCategories = new Map<string, string>();
+  const sourceCategories = new Map<string, SourceResult['category']>();
+  const sourceStatuses = new Map<string, Map<string, 'FOUND' | 'POSSIBLE'>>();
 
   for (const report of reports) {
     for (const result of report.results.filter(isTrail)) {
       sourceNames.set(result.sourceId, result.sourceName);
       sourceCategories.set(result.sourceId, result.category);
+      const statuses = sourceStatuses.get(result.sourceId) ?? new Map<string, 'FOUND' | 'POSSIBLE'>();
+      statuses.set(report.query, result.status);
+      sourceStatuses.set(result.sourceId, statuses);
       const users = sourceUsers.get(result.sourceId) ?? new Set<string>();
       users.add(report.query);
       sourceUsers.set(result.sourceId, users);
@@ -63,6 +81,25 @@ export function buildFriendMetrics(reports: SearchResponse[]): FriendMetrics {
     .sort((a, b) => a.localeCompare(b));
 
   const shared = namesFor(sourceUsers, 2);
+  const sharedDetails: FriendSharedSource[] = [...sourceStatuses.entries()]
+    .filter(([, statuses]) => statuses.size >= 2)
+    .map(([sourceId, statuses]) => {
+      const entries = reports.flatMap((report) => {
+        const status = statuses.get(report.query);
+        return status ? [{ query: report.query, status }] : [];
+      });
+      const foundCount = entries.filter((entry) => entry.status === 'FOUND').length;
+      return {
+        sourceId,
+        sourceName: sourceNames.get(sourceId) ?? sourceId,
+        category: sourceCategories.get(sourceId) ?? 'other',
+        participantCount: entries.length,
+        foundCount,
+        possibleCount: entries.length - foundCount,
+        statuses: entries,
+      };
+    })
+    .sort((a, b) => b.participantCount - a.participantCount || b.foundCount - a.foundCount || a.sourceName.localeCompare(b.sourceName));
   const verifiedShared = namesFor(verifiedSourceUsers, 2);
   const everyoneSites = reports.length >= 2 ? namesFor(sourceUsers, reports.length) : [];
   const verifiedEveryoneSites = reports.length >= 2 ? namesFor(verifiedSourceUsers, reports.length) : [];
@@ -145,6 +182,7 @@ export function buildFriendMetrics(reports: SearchResponse[]): FriendMetrics {
   return {
     participants,
     shared,
+    sharedDetails,
     verifiedShared,
     everyoneSites,
     verifiedEveryoneSites,
