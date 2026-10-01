@@ -90,7 +90,17 @@ await mobile.locator('.thread-map').scrollIntoViewIfNeeded();
 await mobile.screenshot({ path:'thread-mobile.jpg', type:'jpeg', quality:62, fullPage:false });
 
 const docWidth = await mobile.evaluate(() => document.documentElement.scrollWidth);
-if (docWidth > 390) errors.push('mobile document horizontal overflow: ' + docWidth);
+if (docWidth > 390) {
+  errors.push('mobile document horizontal overflow: ' + docWidth);
+  const offenders = await mobile.evaluate(() => [...document.querySelectorAll('*')]
+    .map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { tag: el.tagName, cls: el.className || '', text: (el.textContent || '').trim().slice(0, 80), left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) };
+    })
+    .filter((item) => item.left < -1 || item.right > 391 || item.width > 391)
+    .slice(0, 40));
+  console.log('MOBILE_OVERFLOW_OFFENDERS ' + JSON.stringify(offenders));
+}
 
 const party = await browser.newPage({ viewport:{ width:390, height:844 }, deviceScaleFactor:1 });
 await prepare(party, 'party');
