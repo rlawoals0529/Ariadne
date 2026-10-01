@@ -94,7 +94,7 @@ async function openComparison(page, names, label) {
   if (JSON.stringify(values) !== JSON.stringify(names)) errors.push(label + ' setup mismatch: ' + JSON.stringify(values));
   if (await page.evaluate(() => location.hash)) errors.push(label + ' setup fragment was not cleared');
   if (await page.locator('.party-report').count()) errors.push(label + ' setup auto-ran a comparison');
-  await page.getByRole('button', { name: 'Compare friends', exact: true }).click();
+  await page.locator('.party-form').getByRole('button', { name: 'Compare friends', exact: true }).click();
   await page.locator('.friend-share-preview').waitFor({ state: 'visible', timeout: 15000 });
 }
 
