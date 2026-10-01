@@ -173,3 +173,41 @@ Reference:
 - https://join-lemmy.org/api/main
 
 Ariadne requests `https://programming.dev/api/v4/person?username={username}` and only returns Found when the returned person's canonical `name` matches the requested username.
+
+
+## 2026-10-01 third exact-source additions
+
+### GNOME VCS
+
+GNOME hosts its developer accounts on a GitLab instance.
+
+- GitLab Users API: https://docs.gitlab.com/api/users/
+- Adapter: `GET https://gitlab.gnome.org/api/v4/users?username={username}`
+- GitLab documents exact username filtering and unauthenticated access to the users collection.
+- Ariadne returns Found only when an item in the returned array has a case-insensitive canonical `username` match.
+- An empty returned array is an exact miss. Authentication/server failures remain blocked or uncertain.
+
+### NotABug.org
+
+NotABug is a Gitea instance.
+
+- Gitea user API: https://docs.gitea.com/api/1.26/operations/user-get/
+- Adapter: `GET https://notabug.org/api/v1/users/{username}`
+- Gitea documents the response `login` as the user's username and documents HTTP 404 for a missing user.
+- Ariadne requires returned `login` to match before returning Found.
+
+### Freelancer
+
+- Official developer portal: https://developers.freelancer.com/
+- Adapter: `GET https://www.freelancer.com/api/users/0.1/users?usernames[]={username}&compact=true`
+- The endpoint is on Freelancer's official API domain and accepts username-filtered public user lookups.
+- Ariadne inspects returned user objects and requires a canonical `username` match.
+- An empty users object is treated as an exact miss; auth/rate-limit failures remain Blocked or Couldn't tell.
+
+### Car Talk Community and Spells8
+
+Both are handled through Ariadne's existing Discourse exact adapter pattern.
+
+- Discourse API reference: https://docs.discourse.org/
+- Ariadne requests the username-specific JSON profile endpoint and requires returned `user.username` / `username` equality.
+- 404 is an exact miss; 401/403 stays blocked.
