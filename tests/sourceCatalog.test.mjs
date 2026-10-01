@@ -43,10 +43,10 @@ test('source expansion keeps prohibited side-channel targets out of search', () 
 
 test('coverage expansion materially increases standard and exact checks', () => {
   const stats = searchableSourceStats({});
-  assert.ok(stats.standard >= 327, `expected at least 327 standard sources, got ${stats.standard}`);
-  assert.ok(stats.direct >= 60, `expected at least 60 direct/exact sources, got ${stats.direct}`);
-  assert.ok(exactSources.length >= 51, `expected at least 51 exact source definitions, got ${exactSources.length}`);
-  assert.ok(extendedCatalogSources.length >= 226, `expected at least 226 extended public-profile rules, got ${extendedCatalogSources.length}`);
+  assert.ok(stats.standard >= 318, `expected at least 318 standard sources, got ${stats.standard}`);
+  assert.ok(stats.direct >= 62, `expected at least 62 direct/exact sources, got ${stats.direct}`);
+  assert.ok(exactSources.length >= 53, `expected at least 53 exact source definitions, got ${exactSources.length}`);
+  assert.ok(extendedCatalogSources.length >= 214, `expected at least 214 extended public-profile rules, got ${extendedCatalogSources.length}`);
 });
 
 test('wide scans prioritize direct evidence before broad catalog checks', () => {
@@ -353,6 +353,27 @@ test('third-pass exact adapters require canonical username evidence', async () =
       }
       const missing = await source.probe('ariadne_audit', new AbortController().signal);
       assert.equal(missing.verdict.status, 'NOT_FOUND', `${item.name} should recognize an explicit empty/missing response`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('third-pass Discourse promotions require canonical usernames', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const name of ['Car Talk Community', 'Spells8']) {
+      const source = exactSources.find((candidate) => candidate.name === name);
+      assert.ok(source, `${name} exact source missing`);
+
+      globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'ariadne_audit' } }), { status: 200 });
+      const found = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(found.verdict.status, 'FOUND');
+
+      globalThis.fetch = async () => new Response(JSON.stringify({ user: { username: 'someone_else' } }), { status: 200 });
+      const mismatch = await source.probe('ariadne_audit', new AbortController().signal);
+      assert.equal(mismatch.verdict.status, 'UNKNOWN');
     }
   } finally {
     globalThis.fetch = originalFetch;
