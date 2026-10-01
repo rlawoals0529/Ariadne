@@ -437,3 +437,28 @@
     padding: 13px 15px;
   }
 }
+
+
+@media (max-width: 760px) {
+  .solo-result-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .solo-result-header > div:first-child {
+    min-width: 0;
+  }
+  .solo-result-header p {
+    overflow-wrap: anywhere;
+  }
+  .solo-result-header .result-actions {
+    width: 100%;
+    max-width: 100%;
+    justify-content: stretch;
+  }
+  .solo-result-header .result-actions .secondary {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
