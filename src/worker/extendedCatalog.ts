@@ -455,4 +455,10 @@ export const extendedCatalogStats = {
     withRegex: entries.filter((entry) => Boolean(entry.regex)).length,
     statusOnly: entries.filter((entry) => entry.errorType === 'status_code' && !entry.probe && !entry.regex).length,
   },
+  qualityTiers: {
+    dedicatedProbe: entries.filter((entry) => Boolean(entry.probe)).length,
+    explicitNegative: entries.filter((entry) => !entry.probe && (entry.errorType === 'message' || entry.errorType === 'response_url')).length,
+    statusWithValidator: entries.filter((entry) => !entry.probe && entry.errorType === 'status_code' && Boolean(entry.regex)).length,
+    statusWithBodyEvidence: entries.filter((entry) => !entry.probe && entry.errorType === 'status_code' && !entry.regex).length,
+  },
 } as const;
