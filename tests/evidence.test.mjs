@@ -447,15 +447,19 @@ test('Sherlock-derived rules never become confirmed solely from a 200', async (t
   }
 });
 
-test('extended catalog positives remain possible', async () => {
+test('extended status-only catalog positives require username evidence', async () => {
   const source = sources.find((item) => item.id === 'catalog-9gag');
   assert.ok(source, '9GAG extended catalog source should exist');
   const originalFetch = globalThis.fetch;
   try {
-    globalThis.fetch = async () => new Response('<html><title>profile</title></html>', { status: 200 });
-    const result = await source.probe('exampleuser', new AbortController().signal);
-    assert.equal(result.verdict.status, 'POSSIBLE');
-    assert.notEqual(result.verdict.status, 'FOUND');
+    globalThis.fetch = async () => new Response('<html><title>generic profile shell</title></html>', { status: 200 });
+    const weak = await source.probe('exampleuser', new AbortController().signal);
+    assert.equal(weak.verdict.status, 'UNKNOWN');
+
+    globalThis.fetch = async () => new Response('<html><title>exampleuser profile</title></html>', { status: 200 });
+    const supported = await source.probe('exampleuser', new AbortController().signal);
+    assert.equal(supported.verdict.status, 'POSSIBLE');
+    assert.notEqual(supported.verdict.status, 'FOUND');
   } finally {
     globalThis.fetch = originalFetch;
   }
