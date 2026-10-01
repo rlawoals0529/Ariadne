@@ -2,6 +2,18 @@
 
 The README stays focused on how Ariadne works now. This file keeps the release history and the implementation details that led there.
 
+## Current stopping point — review, cleanup, and sharing
+
+Ariadne's current product loop now goes beyond discovery:
+
+- Thread Map and Evidence Explorer keep Found and Maybe separate while making large scans easier to navigate.
+- Friend Mode can share factual comparison cards and visualize per-person overlap without inferring common ownership.
+- Account Review lets the user mark results Mine, Not mine, or Unsure and track Keep, Clean up, and Done decisions locally in the browser.
+- Mine → Clean up can reveal a curated allowlist of first-party deletion, privacy, or profile-management guides. Unsupported services get no guessed cleanup URL.
+- Cleanup Checklist export generates a local Markdown checklist containing only Mine → Clean up and Mine → Done accounts, profile links, evidence status, and any curated official resources.
+
+Review decisions and cleanup exports remain browser-local. They do not change Ariadne's evidence classifications and are not sent with username scans.
+
 ## v1.0 — evidence analytics and finished product experience
 
 Ariadne v1.0 turns each username scan into a small evidence report rather than a flat list of links.
