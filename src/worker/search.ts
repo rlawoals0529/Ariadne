@@ -19,6 +19,7 @@ const DISABLED_WIDE_SOURCE_IDS = new Set([
   'catalog-dev-community',
   'catalog-duolingo',
   'catalog-hugging-face',
+  'catalog-gitee',
   'catalog-instagram',
   'catalog-keybase',
   'catalog-lemmyworld',
