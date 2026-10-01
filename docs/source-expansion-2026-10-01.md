@@ -182,3 +182,62 @@ The source-catalog test suite now requires:
 - all 30 entries in the first result batch to be direct/exact checks;
 - canonical-identifier matches for the new exact adapters;
 - canonical-identifier mismatches to remain Couldn't tell.
+
+
+## Third coverage + source-health pass
+
+This pass raises the no-credential searchable floor again:
+
+- at least 258 standard public-profile sources;
+- 19 opt-in adult sources;
+- at least 33 direct/exact checks;
+- at least 24 exact adapter definitions;
+- at least 161 extended Sherlock-derived public-profile rules.
+
+### Exact SourceForge verification
+
+SourceForge is promoted from a broad page rule to its documented public REST profile API:
+
+- profile: `https://sourceforge.net/u/{username}/profile/`
+- API: `GET https://sourceforge.net/rest/u/{username}/profile`
+- positive evidence: returned `username` equals the requested username;
+- explicit HTTP 404: exact miss;
+- authentication/rate-limit/server failures: blocked or uncertain.
+
+SourceForge documents that anonymous API requests have anonymous-visitor permissions and documents both the user-profile REST route and the returned `username` field.
+
+### Third curated broad batch
+
+The public-profile catalog adds another conservative batch including:
+
+- developer/security: CSSBattle, CTAN, Coders Rank, Codolio, CryptoHack, CyberDefenders, HackTheBox, PentesterLab, Replit, Weblate, Ionic Forum;
+- creator/portfolio: ColourLovers, Contently, Coroflot, Crevado, Exposure, Houzz, WebNode, Weebly, Wix;
+- media/community/social: HubPages, Instapaper, Issuu, LibraryThing, Plurk, Polarsteps, Sessionize, Velog, Wordnik, CNET, Native Instruments Community, Icons8 Community.
+
+These remain Maybe-only broad rules. Generic redirects and empty 200 responses remain Couldn't tell, anti-bot pages remain Blocked, and broad missing-page signals remain conservative at the search layer.
+
+### Entries deliberately held back in this pass
+
+Some otherwise tempting Sherlock entries were not admitted:
+
+- **Wikidot**: the current upstream rule still uses an HTTP profile URL, which violates Ariadne's HTTPS-only catalog invariant.
+- **Minds**: the upstream probe uses a registration-validation endpoint rather than a public-profile lookup.
+- **omg.lol**: the upstream probe is an address-availability endpoint rather than profile evidence.
+- **Imgur**: the upstream rule embeds a shared client ID in the probe URL; Ariadne does not inherit third-party/shared credentials.
+- **Kick**: upstream explicitly notes that the rule is only viable through a proxy because of Cloudflare.
+- **Discord / Slack / Signal / payment and breach-data targets** remain excluded for the existing public-profile-only reasons.
+
+### Source quality audit
+
+A new `npm run audit:sources` command compiles the source catalog and reports:
+
+- standard and opt-in adult source counts;
+- direct/exact versus broad/heuristic counts;
+- exact adapter count;
+- extended broad-rule count;
+- broad rule composition by status-code, missing-message, and redirect rule;
+- count of dedicated probe URLs and username validators;
+- count of weakest status-only rules;
+- catalog provenance.
+
+The audit fails on duplicate IDs/names, non-HTTPS public profile URLs, coverage regression below this pass's floors, or a direct/exact share below 10% of standard sources. CI now runs this audit on every PR and main push.
