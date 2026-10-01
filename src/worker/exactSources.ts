@@ -397,6 +397,30 @@ export const exactSources: SourceDefinition[] = [
     },
   },
   {
+    id: 'sourceforge',
+    name: 'SourceForge',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://sourceforge.net/u/${encodeURIComponent(u)}/profile/`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://sourceforge.net/rest/u/${encodeURIComponent(u)}/profile`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'SourceForge');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { username?: string } | null)
+        : null;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual: data?.username }),
+      };
+    },
+  },
+  {
     id: 'mastodon-social',
     name: 'Mastodon.social',
     category: 'social',
