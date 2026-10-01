@@ -9,5 +9,5 @@
     "outDir": ".test-dist",
     "rootDir": "src"
   },
-  "include": ["src/shared/**/*.ts", "src/analytics.ts", "src/friendGames.ts", "src/reviewState.ts", "src/shareCard.ts", "src/shareState.ts", "src/worker/evidence.ts", "src/worker/catalog.ts", "src/worker/extendedCatalog.ts", "src/worker/exactSources.ts", "src/worker/credentialSources.ts", "src/worker/sources.ts", "src/worker/search.ts"]
+  "include": ["src/shared/**/*.ts", "src/analytics.ts", "src/cleanupResources.ts", "src/friendGames.ts", "src/reviewState.ts", "src/shareCard.ts", "src/shareState.ts", "src/worker/evidence.ts", "src/worker/catalog.ts", "src/worker/extendedCatalog.ts", "src/worker/exactSources.ts", "src/worker/credentialSources.ts", "src/worker/sources.ts", "src/worker/search.ts"]
 }
