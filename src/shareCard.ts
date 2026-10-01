@@ -17,6 +17,13 @@ function truncate(value: string, limit: number) {
   return value.length > limit ? `${value.slice(0, Math.max(1, limit - 1))}…` : value;
 }
 
+function truncateMiddle(value: string, limit: number) {
+  if (value.length <= limit) return value;
+  const suffixLength = Math.max(3, Math.floor((limit - 1) / 3));
+  const prefixLength = Math.max(1, limit - suffixLength - 1);
+  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
+}
+
 function rows<T>(items: T[], size: number) {
   const output: T[][] = [];
   for (let index = 0; index < items.length; index += size) output.push(items.slice(index, index + size));
@@ -29,7 +36,7 @@ function text(value: string) {
 
 export function buildFriendShareCardSvg(metrics: FriendMetrics) {
   const participants = metrics.participants.slice(0, 6);
-  const handleRows = rows(participants.map((participant) => `@${truncate(participant.query, 14)}`), 3);
+  const handleRows = rows(participants.map((participant) => `@${truncateMiddle(participant.query, 14)}`), 3);
   const foundTotal = participants.reduce((sum, participant) => sum + participant.confirmed, 0);
   const maybeTotal = participants.reduce((sum, participant) => sum + participant.possible, 0);
   const sharedSites = metrics.shared.slice(0, 6);
