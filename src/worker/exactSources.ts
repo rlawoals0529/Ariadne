@@ -67,6 +67,42 @@ function blockedVerdict(site: string, detail: string): Verdict {
   };
 }
 
+function discourseSource(
+  id: string,
+  name: string,
+  host: string,
+  category: SourceDefinition['category'],
+): SourceDefinition {
+  return {
+    id,
+    name,
+    category,
+    nsfw: false,
+    profileUrl: (u) => `https://${host}/u/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://${host}/u/${encodeURIComponent(u)}.json`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, name);
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 403) {
+        return { httpStatus: response.status, verdict: blockedVerdict(name, 'HTTP 403 from the public user endpoint.') };
+      }
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as { user?: { username?: string }; username?: string } | null)
+        : null;
+      const actual = data?.user?.username ?? data?.username;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual }),
+      };
+    },
+  };
+}
+
 export const exactSources: SourceDefinition[] = [
   {
     id: 'codewars',
@@ -380,6 +416,58 @@ export const exactSources: SourceDefinition[] = [
       if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
       const auth = public401(response.status, 'LemmyWorld');
       if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 404) {
+        return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
+      }
+      const data = response.ok
+        ? (await response.json().catch(() => null) as {
+            person_view?: { person?: { name?: string } };
+            person?: { name?: string };
+          } | null)
+        : null;
+      const actual = data?.person_view?.person?.name ?? data?.person?.name;
+      return {
+        httpStatus: response.status,
+        verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, actual }),
+      };
+    },
+  },
+  discourseSource('caddy-community', 'Caddy Community', 'caddy.community', 'developer'),
+  discourseSource('cloudflare-community', 'Cloudflare Community', 'community.cloudflare.com', 'developer'),
+  discourseSource('choice-community', 'Choice Community', 'choice.community', 'community'),
+  discourseSource('discuss-elastic', 'Discuss Elastic', 'discuss.elastic.co', 'developer'),
+  discourseSource('joplin-forum', 'Joplin Forum', 'discourse.joplinapp.org', 'developer'),
+  discourseSource('jupyter-community-forum', 'Jupyter Community Forum', 'discourse.jupyter.org', 'developer'),
+  discourseSource('nextcloud-forum', 'Nextcloud Forum', 'help.nextcloud.com', 'developer'),
+  discourseSource('n8n-community', 'n8n Community', 'community.n8n.io', 'developer'),
+  discourseSource('sublime-forum', 'Sublime Forum', 'forum.sublimetext.com', 'developer'),
+  discourseSource('wicg-forum', 'WICG Forum', 'discourse.wicg.io', 'developer'),
+  discourseSource('cryptomator-forum', 'Cryptomator Forum', 'community.cryptomator.org', 'developer'),
+  discourseSource('envato-forum', 'Envato Forum', 'forums.envato.com', 'creative'),
+  discourseSource('hackthebox', 'HackTheBox', 'forum.hackthebox.com', 'developer'),
+  discourseSource('rclone-forum', 'Rclone Forum', 'forum.rclone.org', 'developer'),
+  discourseSource('ionic-forum', 'Ionic Forum', 'forum.ionicframework.com', 'developer'),
+  discourseSource('leasehackr', 'Leasehackr', 'forum.leasehackr.com', 'community'),
+  discourseSource('nothing-community', 'Nothing Community', 'nothing.community', 'community'),
+  discourseSource('icons8-community', 'Icons8 Community', 'community.icons8.com', 'community'),
+  discourseSource('ruby-forums', 'Ruby Forums', 'ruby-forum.com', 'developer'),
+  discourseSource('hackersploit-forum', 'HackerSploit', 'forum.hackersploit.org', 'developer'),
+  discourseSource('windy-community', 'Windy', 'community.windy.com', 'community'),
+  {
+    id: 'programming-dev',
+    name: 'programming.dev',
+    category: 'developer',
+    nsfw: false,
+    profileUrl: (u) => `https://programming.dev/u/${encodeURIComponent(u)}`,
+    probe: async (u, signal) => {
+      const response = await fetchJson(`https://programming.dev/api/v4/person?username=${encodeURIComponent(u)}`, signal);
+      const infrastructure = classifyHttpFailure(response.status);
+      if (infrastructure) return { httpStatus: response.status, verdict: infrastructure };
+      const auth = public401(response.status, 'programming.dev');
+      if (auth) return { httpStatus: response.status, verdict: auth };
+      if (response.status === 403) {
+        return { httpStatus: response.status, verdict: blockedVerdict('programming.dev', 'HTTP 403 from the public person endpoint.') };
+      }
       if (response.status === 404) {
         return { httpStatus: response.status, verdict: apiIdentityVerdict({ httpStatus: response.status, expected: u, missing: true }) };
       }
