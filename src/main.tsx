@@ -6,6 +6,7 @@ import './party.css';
 import './evidence.css';
 import './analytics.css';
 import './profile.css';
+import './thread.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

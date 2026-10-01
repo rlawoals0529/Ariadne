@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { buildScanAnalytics, CATEGORY_LABELS, type ScanAnalytics } from './analytics';
 import { buildFriendMetrics, type FriendMetrics, type FriendPair } from './friendGames';
-import type { ResultStatus, SearchResponse, SourceResult } from './shared/types';
+import { buildShareHash, parseShareHash } from './shareState';
+import type { ResultStatus, SearchResponse, SourceCategory, SourceResult } from './shared/types';
 
 const FRIEND_LIMIT = 6;
 const FRIEND_SCAN_CONCURRENCY = 2;
@@ -97,6 +98,18 @@ export default function App() {
   const [resultSearch, setResultSearch] = useState('');
 
   useEffect(() => {
+    const shared = parseShareHash(window.location.hash);
+    if (shared) {
+      setMode(shared.mode);
+      setIncludeNsfw(shared.includeNsfw);
+      if (shared.mode === 'solo') {
+        setQuery(shared.usernames[0]);
+      } else {
+        setPartyQueries(shared.usernames);
+      }
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+
     fetch('/api/sources')
       .then((response) => response.ok ? response.json() : null)
       .then((payload: SourceStats | null) => payload && setSourceStats(payload))
@@ -247,6 +260,40 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function exploreThreadCategory(category: SourceCategory | 'ALL') {
+    setCategoryFilter(category);
+    setFilter('ALL');
+    setSensitivityFilter('ALL');
+    setEvidenceFilter('ALL');
+    setResultSearch('');
+    requestAnimationFrame(() => document.getElementById('evidence-explorer')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
+  async function shareSetupLink(targetMode: Mode) {
+    const usernames = targetMode === 'solo'
+      ? [data?.query ?? query.trim()]
+      : (partyData.length ? partyData.map((report) => report.query) : partyQueries.map((value) => value.trim()).filter(Boolean));
+    const adult = targetMode === 'solo' ? (data?.includeNsfw ?? includeNsfw) : includeNsfw;
+    const hash = buildShareHash(targetMode, usernames, adult);
+    if (!hash) return;
+
+    const url = `${window.location.origin}${window.location.pathname}${hash}`;
+    const title = targetMode === 'solo' ? `Ariadne setup · @${usernames[0]}` : 'Ariadne · Friend Mode setup';
+    const text = targetMode === 'solo'
+      ? `Open Ariadne with @${usernames[0]} ready to scan.`
+      : `Open Ariadne with ${usernames.length} friend usernames ready to compare.`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      }
+    }
+    await copy(url);
   }
 
   async function shareProfileSummary() {
@@ -407,6 +454,14 @@ export default function App() {
               analytics={scanAnalytics}
               complete={data.nextCursor === null && !loading}
               onShare={shareProfileSummary}
+              onShareSetup={() => shareSetupLink('solo')}
+            />
+          )}
+          {scanAnalytics && (
+            <ThreadMap
+              data={data}
+              analytics={scanAnalytics}
+              onExplore={exploreThreadCategory}
             />
           )}
           <div className="scan-support-stack" aria-label="Supporting scan details">
@@ -500,7 +555,7 @@ export default function App() {
         </section>
       )}
 
-      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onShare={sharePartySummary} />}
+      {mode === 'party' && partyData.length > 0 && <PartyReport reports={partyData} metrics={partyMetrics} loading={loading} onExport={exportJson} onShare={sharePartySummary} onShareSetup={() => shareSetupLink('party')} />}
 
       <footer><span>ARIADNE v1.0</span><span>Public profiles only · Adult sites off by default · Friend comparisons are not saved</span></footer>
     </main>
@@ -587,11 +642,13 @@ function ProfileSummary({
   analytics,
   complete,
   onShare,
+  onShareSetup,
 }: {
   data: SearchResponse;
   analytics: ScanAnalytics;
   complete: boolean;
   onShare: () => void;
+  onShareSetup: () => void;
 }) {
   const found = data.results.filter((result) => result.status === 'FOUND');
   const possible = data.results.filter((result) => result.status === 'POSSIBLE');
@@ -625,6 +682,7 @@ function ProfileSummary({
         <div className="profile-summary-actions">
           <span className={complete ? 'scan-state complete' : 'scan-state'}>{complete ? 'Scan complete' : 'Updating'}</span>
           <button className="secondary" type="button" onClick={onShare}>Share snapshot</button>
+          <button className="secondary" type="button" onClick={onShareSetup} title="Shares a link that only prefills this username">Share setup</button>
         </div>
       </div>
 
@@ -730,12 +788,63 @@ function ProfileSummary({
       </div>
 
       <div className="profile-summary-foot">
-        <p>Ariadne reports public profile signals only. A matching username does not prove that the same person owns every account.</p>
+        <p>Ariadne reports public profile signals only. A matching username does not prove that the same person owns every account. Setup links only prefill the form and never start a scan automatically.</p>
         <a href="#evidence-explorer">Explore all {data.results.length} results <span aria-hidden="true">↓</span></a>
       </div>
     </section>
   );
 }
+function ThreadMap({
+  data,
+  analytics,
+  onExplore,
+}: {
+  data: SearchResponse;
+  analytics: ScanAnalytics;
+  onExplore: (category: SourceCategory | 'ALL') => void;
+}) {
+  const categories = analytics.categories
+    .filter((item) => item.found + item.possible > 0)
+    .slice(0, 6);
+  const totalSignals = data.summary.FOUND + data.summary.POSSIBLE;
+
+  return (
+    <section className="thread-map" aria-label="Thread Map">
+      <div className="thread-map-head">
+        <div><div className="eyebrow">THREAD MAP</div><h3>Follow the strongest signal areas</h3></div>
+        <p>Each node is built only from this scan’s Found and Maybe results. Open a category to jump straight into its evidence.</p>
+      </div>
+      <div className="thread-map-canvas">
+        <button type="button" className="thread-map-center" onClick={() => onExplore('ALL')}>
+          <span>All evidence</span>
+          <strong>@{data.query}</strong>
+          <small>{totalSignals} public profile signal{totalSignals === 1 ? '' : 's'}</small>
+        </button>
+        {categories.length ? categories.map((item) => {
+          const total = item.found + item.possible;
+          const foundShare = total ? (item.found / total) * 100 : 0;
+          return (
+            <button type="button" className="thread-node" key={item.category} onClick={() => onExplore(item.category)}>
+              <span><strong>{item.label}</strong><b>{total}</b></span>
+              <small>{item.found} found · {item.possible} maybe</small>
+              <span className="thread-node-track" aria-hidden="true">
+                <i style={{ width: `${foundShare}%` }} />
+                <em style={{ width: `${100 - foundShare}%` }} />
+              </span>
+            </button>
+          );
+        }) : (
+          <p className="thread-map-empty">No Found or Maybe signal areas surfaced in this scan. Open all evidence to review blocked, unclear, and No match results.</p>
+        )}
+      </div>
+      <div className="thread-map-foot">
+        <span><strong>Tip:</strong> choose a node to filter Evidence Explorer.</span>
+        <span>Shared setup links keep usernames in the URL fragment, not the server request.</span>
+      </div>
+    </section>
+  );
+}
+
 function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; complete: boolean }) {
   const funnelMax = Math.max(1, analytics.funnel[0]?.value ?? 1);
   const signalCategories = analytics.categories.filter((item) => item.found + item.possible > 0);
@@ -813,7 +922,7 @@ function ScanInsights({ analytics, complete }: { analytics: ScanAnalytics; compl
   );
 }
 
-function PartyReport({ reports, metrics, loading, onExport, onShare }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onShare: () => void }) {
+function PartyReport({ reports, metrics, loading, onExport, onShare, onShareSetup }: { reports: SearchResponse[]; metrics: FriendMetrics; loading: boolean; onExport: () => void; onShare: () => void; onShareSetup: () => void }) {
   const everyoneLabel = metrics.everyoneSites.length ? `${metrics.everyoneSites.length} ${metrics.everyoneSites.length === 1 ? 'site' : 'sites'}` : 'None yet';
   const everyoneNote = metrics.everyoneSites.length
     ? `${metrics.verifiedEveryoneSites.length} verified for everyone${metrics.everyoneSites.length <= 3 ? ` · ${metrics.everyoneSites.join(', ')}` : ''}`
@@ -830,7 +939,7 @@ function PartyReport({ reports, metrics, loading, onExport, onShare }: { reports
           <div className="eyebrow">FRIEND REPORT</div>
           <p>{reports.length} completed ${reports.length === 1 ? 'scan' : 'scans'}{loading ? ' · still checking' : ''}</p>
         </div>
-        <div className="party-actions"><button className="secondary" onClick={onShare}>Share snapshot</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
+        <div className="party-actions"><button className="secondary" onClick={onShare}>Share snapshot</button><button className="secondary" onClick={onShareSetup} title="Shares a link that only prefills these usernames">Share setup</button><button className="secondary" onClick={onExport}>Save JSON</button></div>
       </div>
 
       <section className="friend-report-hero" aria-label="Friend footprint summary">
@@ -921,7 +1030,7 @@ function PartyReport({ reports, metrics, loading, onExport, onShare }: { reports
         </div>
       </details>
 
-      <p className="party-disclaimer">Friend Mode only compares public profile signals from this scan. A Maybe result still needs a manual check, and none of these comparisons prove identity or account ownership.</p>
+      <p className="party-disclaimer">Friend Mode only compares public profile signals from this scan. A Maybe result still needs a manual check, and none of these comparisons prove identity or account ownership. Shared setup links only prefill the usernames and do not run or save a scan.</p>
     </section>
   );
 }
